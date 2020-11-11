@@ -23,7 +23,6 @@ use std::ops::*;
 
 
 mod codegen;
-mod codegen_info;
 mod fsm_def;
 mod parse;
 mod viz;
@@ -59,7 +58,6 @@ pub fn derive_fsm(input: TokenStream) -> TokenStream {
     };
 
     //panic!("q: {:?}", q.to_string());
-    //panic!("main: {:?}", main);
 
     //let q = q.to_string().parse().unwrap();    
     //q
