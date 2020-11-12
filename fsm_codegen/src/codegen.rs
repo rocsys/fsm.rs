@@ -10,7 +10,7 @@ use itertools::Itertools;
 pub fn build_state_store(fsm: &FsmDescription) -> quote::Tokens {
     let fsm_name = fsm.get_fsm_ty();
     let impl_suffix = fsm.get_impl_suffix();
-    let states_ty = fsm.get_states_ty();
+    // let states_ty = fsm.get_states_ty();
     let states_store_ty = fsm.get_states_store_ty();
 
     let mut retr = quote::Tokens::new();
@@ -76,9 +76,9 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
     let fsm_name = fsm.get_fsm_ty();
     let impl_suffix = fsm.get_impl_suffix();
     let events_ty = fsm.get_events_ty();
-    let actions_ty = fsm.get_actions_ty();
+    // let actions_ty = fsm.get_actions_ty();
     let states_ty = fsm.get_states_ty();
-    let history_ty = fsm.get_history_ty();
+    // let history_ty = fsm.get_history_ty();
 
     // events
     let all_transitions = fsm.get_all_transitions();
@@ -139,12 +139,12 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
 pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
     let fsm_ty = fsm.get_fsm_ty();
-    let fsm_ty_inline = fsm.get_fsm_ty_inline();
+    // let fsm_ty_inline = fsm.get_fsm_ty_inline();
     let events_ty = fsm.get_events_ty();
     let states_ty = fsm.get_states_ty();
-    let actions_ty = fsm.get_actions_ty();
-    let history_ty = fsm.get_history_ty();
-    let context_ty = &fsm.context_ty;
+    // let actions_ty = fsm.get_actions_ty();
+    // let history_ty = fsm.get_history_ty();
+    // let context_ty = &fsm.context_ty;
 
     // states
 
@@ -422,8 +422,8 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     let states_ty = fsm.get_states_ty();
     let current_state_ty = fsm.get_current_state_ty();
     let states_store_ty = fsm.get_states_store_ty();
-    let actions_ty = fsm.get_actions_ty();
-    let history_ty = fsm.get_history_ty();
+    // let actions_ty = fsm.get_actions_ty();
+    // let history_ty = fsm.get_history_ty();
     let inspection_ty = fsm.get_inspection_ty();
     let ctx = &fsm.context_ty;
     
@@ -649,7 +649,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
 
 pub fn build_on_handlers(fsm: &FsmDescription) -> quote::Tokens {
     
-    let fsm_ty = fsm.get_fsm_ty();
+    // let fsm_ty = fsm.get_fsm_ty();
     let events_ty = fsm.get_events_ty();
     let states_ty = fsm.get_states_ty();
 

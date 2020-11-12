@@ -41,14 +41,14 @@ impl FsmRegion {
         self.transitions.iter().map(|ref x| &x.source_state).chain(self.transitions.iter().map(|ref x| &x.target_state)).unique_by(|x| *x).cloned().collect()
     }
     
-    pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
-        // warning: quadratic!
-        self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()
-    }
+    // pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
+    //     // warning: quadratic!
+    //     self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()
+    // }
 
-    pub fn is_submachine(&self, ty: &syn::Ty) -> bool {
-        self.submachines.iter().find(|x| x == &ty).is_some()
-    }
+    // pub fn is_submachine(&self, ty: &syn::Ty) -> bool {
+    //     self.submachines.iter().find(|x| x == &ty).is_some()
+    // }
 }
 
 
@@ -59,19 +59,19 @@ pub struct ShallowHistoryEvent {
 }
 
 impl ShallowHistoryEvent {
-    pub fn get_field_name(&self) -> syn::Ty {
-        let mut t = quote::Tokens::new();
-        self.target_state_ty.to_tokens(&mut t);
+    // pub fn get_field_name(&self) -> syn::Ty {
+    //     let mut t = quote::Tokens::new();
+    //     self.target_state_ty.to_tokens(&mut t);
         
-        syn::parse_type(&format!("history_{}", t.as_str())).unwrap()
-    }
+    //     syn::parse_type(&format!("history_{}", t.as_str())).unwrap()
+    // }
 
-    pub fn get_field_ty(&self) -> syn::Ty {
-        let mut t = quote::Tokens::new();
-        self.target_state_ty.to_tokens(&mut t);
+    // pub fn get_field_ty(&self) -> syn::Ty {
+    //     let mut t = quote::Tokens::new();
+    //     self.target_state_ty.to_tokens(&mut t);
 
-        syn::parse_type(&format!("Option<{}>", t.as_str())).unwrap()
-    }
+    //     syn::parse_type(&format!("Option<{}>", t.as_str())).unwrap()
+    // }
 }
 
 impl FsmDescription {
@@ -107,7 +107,7 @@ impl FsmDescription {
     pub fn get_current_state_ty(&self) -> syn::Ty {
         let mut q = quote::Tokens::new();
         q.append("(");
-        for (i, region) in self.regions.iter().enumerate() {
+        for (i, _region) in self.regions.iter().enumerate() {
             q.append(&ty_to_string(&self.get_states_ty()));
             if i < self.regions.len() - 1 {
                 q.append(",");
@@ -121,17 +121,17 @@ impl FsmDescription {
         syn::parse_type(&format!("{}StatesStore", self.name)).unwrap()
     }
 
-    pub fn get_actions_ty(&self) -> syn::Ty {
-        syn::parse_type(&format!("{}Actions", self.name)).unwrap()
-    }
+    // pub fn get_actions_ty(&self) -> syn::Ty {
+    //     syn::parse_type(&format!("{}Actions", self.name)).unwrap()
+    // }
 
-    pub fn get_history_ty(&self) -> syn::Ty {
-        if self.shallow_history_events.len() == 0 {
-            syn::parse_type("()").unwrap()
-        } else {
-            syn::parse_type(&format!("{}History", self.name)).unwrap()
-        }
-    }
+    // pub fn get_history_ty(&self) -> syn::Ty {
+    //     if self.shallow_history_events.len() == 0 {
+    //         syn::parse_type("()").unwrap()
+    //     } else {
+    //         syn::parse_type(&format!("{}History", self.name)).unwrap()
+    //     }
+    // }
 
     pub fn get_inspection_ty(&self) -> syn::Ty {
         if let Some(ref ty) = self.inspect_ty {
@@ -143,13 +143,13 @@ impl FsmDescription {
         }
     }
 
-    pub fn get_build_viz_fn(&self) -> syn::Ty {
-        syn::parse_type(&format!("build_viz_{}", self.name)).unwrap()
-    }
+    // pub fn get_build_viz_fn(&self) -> syn::Ty {
+    //     syn::parse_type(&format!("build_viz_{}", self.name)).unwrap()
+    // }
 
-    pub fn get_build_viz_docs_fn(&self) -> syn::Ty {
-        syn::parse_type(&format!("build_viz_docs_{}", self.name)).unwrap()
-    }
+    // pub fn get_build_viz_docs_fn(&self) -> syn::Ty {
+    //     syn::parse_type(&format!("build_viz_docs_{}", self.name)).unwrap()
+    // }
 
     pub fn get_submachine_types(&self) -> &[syn::Ty] {
         &self.submachines
@@ -170,10 +170,10 @@ impl FsmDescription {
             .unique_by(|x| *x).cloned().collect()
     }
 
-    pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
-        // warning: quadratic!
-        self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()
-    }
+    // pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
+    //     // warning: quadratic!
+    //     self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()
+    // }
 
     pub fn to_state_field_name(state: &syn::Ty) -> syn::Ty {
         let t = ty_to_string(state).to_lowercase();
@@ -241,9 +241,9 @@ impl TransitionEntry {
         self.source_state == self.target_state
     }
 
-    pub fn is_anonymous_transition(&self) -> bool {
-        self.event == syn::parse_type("NoEvent").unwrap()
-    }
+    // pub fn is_anonymous_transition(&self) -> bool {
+    //     self.event == syn::parse_type("NoEvent").unwrap()
+    // }
 }
 
 

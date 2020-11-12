@@ -3,13 +3,13 @@ extern crate syn;
 use fsm_def::*;
 use petgraph::*;
 
-use petgraph::dot::{
-    Dot,
-};
+// use petgraph::dot::{
+//     Dot,
+// };
 
-use petgraph::algo::{
-    DfsSpace,
-};
+// use petgraph::algo::{
+//     DfsSpace,
+// };
 
 use petgraph::visit::*;
 
@@ -110,7 +110,7 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
         r.transitions.push(transition.clone());
     }
 
-    for mut region in &mut regions {
+    for region in &mut regions {
         let states = region.get_all_states().clone();
         for s in &states {
             if submachines.contains(s) {

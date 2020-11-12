@@ -21,18 +21,18 @@ pub trait FsmEvents<F: Fsm> {
 }
 
 pub trait FsmState<F: Fsm> {	
-	fn on_entry(&mut self, event_context: &mut EventContext<F>) { }
-	fn on_exit(&mut self, event_context: &mut EventContext<F>) { }		
+	fn on_entry(&mut self, _event_context: &mut EventContext<F>) { }
+	fn on_exit(&mut self, _event_context: &mut EventContext<F>) { }		
 }
 
 pub trait FsmInspect<F: Fsm> {
 	fn new_from_context(context: &F::C) -> Self;
 
-	fn on_state_entry(&self, state: &F::S, event_context: &EventContext<F>) { }
-	fn on_state_exit(&self, state: &F::S, event_context: &EventContext<F>) { }
-	fn on_action(&self, state: &F::S, event_context: &EventContext<F>) { }
-	fn on_transition(&self, source_state: &F::S, target_state: &F::S, event_context: &EventContext<F>) { }
-	fn on_no_transition(&self, current_state: &F::S, event_context: &EventContext<F>) { }
+	fn on_state_entry(&self, _state: &F::S, _event_context: &EventContext<F>) { }
+	fn on_state_exit(&self, _state: &F::S, _event_context: &EventContext<F>) { }
+	fn on_action(&self, _state: &F::S, _event_context: &EventContext<F>) { }
+	fn on_transition(&self, _source_state: &F::S, _target_state: &F::S, _event_context: &EventContext<F>) { }
+	fn on_no_transition(&self, _current_state: &F::S, _event_context: &EventContext<F>) { }
 }
 
 #[derive(Default)]
@@ -41,7 +41,7 @@ pub struct FsmInspectNull<F: Fsm> {
 }
 
 impl<F: Fsm> FsmInspect<F> for FsmInspectNull<F> {
-	fn new_from_context(context: &F::C) -> Self {
+	fn new_from_context(_context: &F::C) -> Self {
 		FsmInspectNull {
 			_fsm_ty: PhantomData
 		}
@@ -97,7 +97,7 @@ pub trait FsmStateFactory {
 }
 
 impl<S: Default> FsmStateFactory for S {
-	fn new_state<C>(parent_context: &C) -> Self {
+	fn new_state<C>(_parent_context: &C) -> Self {
 		Default::default()
 	}
 }
@@ -109,7 +109,7 @@ pub trait FsmGuard<F: Fsm> {
 pub struct NoGuard;
 impl<F: Fsm> FsmGuard<F> for NoGuard {
 	#[inline]
-	fn guard(event_context: &EventContext<F>, states: &F::SS) -> bool {
+	fn guard(_event_context: &EventContext<F>, _states: &F::SS) -> bool {
 		true
 	}
 }
@@ -130,17 +130,17 @@ impl FsmEvent for NoEvent { }
 pub struct NoAction;
 impl<F: Fsm, S, T> FsmAction<F, S, T> for NoAction {
 	#[inline]
-	fn action(event_context: &mut EventContext<F>, source_state: &mut S, target_state: &mut T) { }
+	fn action(_event_context: &mut EventContext<F>, _source_state: &mut S, _target_state: &mut T) { }
 }
 impl<F: Fsm, S> FsmActionSelf<F, S> for NoAction {
 	#[inline]
-	fn action(event_context: &mut EventContext<F>, state: &mut S) { }
+	fn action(_event_context: &mut EventContext<F>, _state: &mut S) { }
 }
 
 
 pub struct EventContext<'a, F: Fsm + 'a> {
 	pub event: &'a F::E,
-	pub queue: &'a mut FsmEventQueue<F>,
+	pub queue: &'a mut dyn FsmEventQueue<F>,
 	pub context: &'a mut F::C,
 	pub current_state: F::CS,
 	//pub states: &'a mut F::SS
@@ -202,8 +202,8 @@ pub trait Fsm where Self: Sized {
 	fn start(&mut self);
 	fn stop(&mut self);
 
-	fn get_queue(&self) -> &FsmEventQueue<Self>;
-	fn get_queue_mut(&mut self) -> &mut FsmEventQueue<Self>;
+	fn get_queue(&self) -> &dyn FsmEventQueue<Self>;
+	fn get_queue_mut(&mut self) -> &mut dyn FsmEventQueue<Self>;
 
 	fn get_current_state(&self) -> Self::CS;
 	fn get_states(&self) -> &Self::SS;
@@ -225,23 +225,23 @@ pub trait Fsm where Self: Sized {
 	fn process_event(&mut self, event: Self::E) -> Result<(), FsmError>;
 
 	
-	fn execute_queued_events(&mut self) -> FsmQueueStatus {
-		if self.get_queue().len() == 0 { return FsmQueueStatus::Empty; }
+	fn execute_queued_events(&mut self) -> Result<FsmQueueStatus, FsmError> {
+		if self.get_queue().len() == 0 { return Ok(FsmQueueStatus::Empty); }
 
 		loop {
 			let l = self.execute_single_queued_event();
-			if l == FsmQueueStatus::Empty { break; }
+			if l == Ok(FsmQueueStatus::Empty) { break; }
 		}
 
-		FsmQueueStatus::Empty
+		Ok(FsmQueueStatus::Empty)
 	}
 
-	fn execute_single_queued_event(&mut self) -> FsmQueueStatus {
+	fn execute_single_queued_event(&mut self) -> Result<FsmQueueStatus, FsmError> {
 		if let Some(ev) = self.get_queue_mut().dequeue_event() {
-			self.process_event(ev); // should this somehow bubble?
+			let _ = self.process_event(ev); // should this somehow bubble?
 		}
 
-		if self.get_queue().len() == 0 { FsmQueueStatus::Empty } else { FsmQueueStatus::MoreEventsQueued }
+		if self.get_queue().len() == 0 { Ok(FsmQueueStatus::Empty) } else { Ok(FsmQueueStatus::MoreEventsQueued) }
 	}
 	
 	fn get_message_queue_size(&self) -> usize {

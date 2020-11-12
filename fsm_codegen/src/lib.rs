@@ -8,18 +8,18 @@ extern crate petgraph;
 #[macro_use]
 extern crate itertools;
 
-use itertools::Itertools;
+// use itertools::Itertools;
 
-use fsm::*;
+// use fsm::*;
 use proc_macro::TokenStream;
-use quote::ToTokens;
+// use quote::ToTokens;
 
 extern crate syn;
 
-#[macro_use]
+//#[macro_use] 
 extern crate quote;
 
-use std::ops::*;
+// use std::ops::*;
 
 
 mod codegen;
@@ -30,7 +30,7 @@ mod graph;
 
 use codegen::*;
 use parse::*;
-use fsm_def::*;
+// use fsm_def::*;
 use viz::*;
 
 
