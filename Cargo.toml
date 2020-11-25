@@ -3,9 +3,10 @@ name = "fsm"
 version = "0.1.0"
 authors = ["Rudi Benkovic <rudi.benkovic@gmail.com>"]
 
-[dependencies]
-
 [features]
 default = ["std"]
 std = []
 core_collections = []
+
+[workspace]
+members = ["fsm_codegen", "fsm_tests"]
