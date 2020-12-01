@@ -20,9 +20,9 @@ pub trait FsmEvents<F: Fsm> {
 	fn new_no_event() -> Self;
 }
 
-pub trait FsmState<F: Fsm> {	
+pub trait FsmState<F: Fsm> {
 	fn on_entry(&mut self, event_context: &mut EventContext<F>) { }
-	fn on_exit(&mut self, event_context: &mut EventContext<F>) { }		
+	fn on_exit(&mut self, event_context: &mut EventContext<F>) { }
 }
 
 pub trait FsmInspect<F: Fsm> {
@@ -87,17 +87,17 @@ impl<A, B> FsmStateFactory for (A, B) {
 /*
 pub trait FsmStateSubMachineTransition<F: Fsm> {
 	fn on_entry_internal(&mut self) { }
-	fn on_exit_internal(&mut self) { } 	
+	fn on_exit_internal(&mut self) { }
 }
 */
 
 
-pub trait FsmStateFactory {
-	fn new_state<C>(parent_context: &C) -> Self;
+pub trait FsmStateFactory<Context> {
+	fn new_state(parent_context: &Context) -> Self;
 }
 
-impl<S: Default> FsmStateFactory for S {
-	fn new_state<C>(parent_context: &C) -> Self {
+impl<S: Default, Context> FsmStateFactory<Context> for S {
+	fn new_state(parent_context: &Context) -> Self {
 		Default::default()
 	}
 }
@@ -208,7 +208,7 @@ pub trait Fsm where Self: Sized {
 	fn get_current_state(&self) -> Self::CS;
 	fn get_states(&self) -> &Self::SS;
 	fn get_states_mut(&mut self) -> &mut Self::SS;
-	
+
 	fn process_anonymous_transitions(&mut self) -> Result<(), FsmError> {
 		loop {
 			match self.process_event(Self::E::new_no_event()) {
@@ -220,11 +220,11 @@ pub trait Fsm where Self: Sized {
 		}
 
 		Ok(())
-	}	
+	}
 
 	fn process_event(&mut self, event: Self::E) -> Result<(), FsmError>;
 
-	
+
 	fn execute_queued_events(&mut self) -> FsmQueueStatus {
 		if self.get_queue().len() == 0 { return FsmQueueStatus::Empty; }
 
@@ -243,7 +243,7 @@ pub trait Fsm where Self: Sized {
 
 		if self.get_queue().len() == 0 { FsmQueueStatus::Empty } else { FsmQueueStatus::MoreEventsQueued }
 	}
-	
+
 	fn get_message_queue_size(&self) -> usize {
 		self.get_queue().len()
 	}
