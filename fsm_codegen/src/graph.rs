@@ -3,15 +3,6 @@ extern crate syn;
 use crate::fsm_def::*;
 
 use petgraph::*;
-
-use petgraph::dot::{
-    Dot,
-};
-
-use petgraph::algo::{
-    DfsSpace,
-};
-
 use petgraph::visit::*;
 
 use std::collections::HashMap;
@@ -31,7 +22,6 @@ impl fmt::Display for NodeData {
 }
 
 pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<syn::Ty>, submachines: &Vec<syn::Ty>, interrupt_states: &Vec<FsmInterruptState>) -> Vec<FsmRegion> {
-
     let mut gr = Graph::new();
     let mut nodes = HashMap::new();
 
@@ -111,7 +101,7 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
         r.transitions.push(transition.clone());
     }
 
-    for mut region in &mut regions {
+    for region in &mut regions {
         let states = region.get_all_states().clone();
         for s in &states {
             if submachines.contains(s) {

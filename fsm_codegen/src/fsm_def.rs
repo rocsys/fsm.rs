@@ -40,7 +40,7 @@ impl FsmRegion {
     pub fn get_all_states(&self) -> Vec<syn::Ty> {
         self.transitions.iter().map(|ref x| &x.source_state).chain(self.transitions.iter().map(|ref x| &x.target_state)).unique_by(|x| *x).cloned().collect()
     }
-    
+
     pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
         // warning: quadratic!
         self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()
@@ -59,13 +59,15 @@ pub struct ShallowHistoryEvent {
 }
 
 impl ShallowHistoryEvent {
+    #[allow(dead_code)]
     pub fn get_field_name(&self) -> syn::Ty {
         let mut t = quote::Tokens::new();
         self.target_state_ty.to_tokens(&mut t);
-        
+
         syn::parse_type(&format!("history_{}", t.as_str())).unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn get_field_ty(&self) -> syn::Ty {
         let mut t = quote::Tokens::new();
         self.target_state_ty.to_tokens(&mut t);
@@ -83,7 +85,7 @@ impl FsmDescription {
         }
     }
 
-    pub fn get_fsm_ty_inline(&self) -> syn::Ty {        
+    pub fn get_fsm_ty_inline(&self) -> syn::Ty {
         syn::parse_type(&self.name).unwrap()
     }
 
@@ -107,7 +109,7 @@ impl FsmDescription {
     pub fn get_current_state_ty(&self) -> syn::Ty {
         let mut q = quote::Tokens::new();
         q.append("(");
-        for (i, region) in self.regions.iter().enumerate() {
+        for (i, _region) in self.regions.iter().enumerate() {
             q.append(&ty_to_string(&self.get_states_ty()));
             if i < self.regions.len() - 1 {
                 q.append(",");
@@ -121,10 +123,12 @@ impl FsmDescription {
         syn::parse_type(&format!("{}StatesStore", self.name)).unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn get_actions_ty(&self) -> syn::Ty {
         syn::parse_type(&format!("{}Actions", self.name)).unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn get_history_ty(&self) -> syn::Ty {
         if self.shallow_history_events.len() == 0 {
             syn::parse_type("()").unwrap()
@@ -138,7 +142,7 @@ impl FsmDescription {
             ty.clone()
         } else {
             let mut t = quote! {};
-            self.get_fsm_ty().to_tokens(&mut t);            
+            self.get_fsm_ty().to_tokens(&mut t);
             syn::parse_type(&format!("FsmInspectNull<{}>", t.as_str())).unwrap()
         }
     }
@@ -170,6 +174,7 @@ impl FsmDescription {
             .unique_by(|x| *x).cloned().collect()
     }
 
+    #[allow(dead_code)]
     pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
         // warning: quadratic!
         self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()

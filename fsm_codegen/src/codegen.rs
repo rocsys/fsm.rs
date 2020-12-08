@@ -10,7 +10,6 @@ use itertools::Itertools;
 pub fn build_state_store(fsm: &FsmDescription) -> quote::Tokens {
     let fsm_name = fsm.get_fsm_ty();
     let impl_suffix = fsm.get_impl_suffix();
-    let states_ty = fsm.get_states_ty();
     let states_store_ty = fsm.get_states_store_ty();
     let context_ty = &fsm.context_ty;
 
@@ -77,9 +76,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
     let fsm_name = fsm.get_fsm_ty();
     let impl_suffix = fsm.get_impl_suffix();
     let events_ty = fsm.get_events_ty();
-    let actions_ty = fsm.get_actions_ty();
     let states_ty = fsm.get_states_ty();
-    let history_ty = fsm.get_history_ty();
 
     // events
     let all_transitions = fsm.get_all_transitions();
@@ -138,14 +135,9 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
 }
 
 pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
-
     let fsm_ty = fsm.get_fsm_ty();
-    let fsm_ty_inline = fsm.get_fsm_ty_inline();
     let events_ty = fsm.get_events_ty();
     let states_ty = fsm.get_states_ty();
-    let actions_ty = fsm.get_actions_ty();
-    let history_ty = fsm.get_history_ty();
-    let context_ty = &fsm.context_ty;
 
     // states
 
@@ -338,6 +330,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
         let mut res = None;
     };
     if fsm.has_multiple_regions() {
+        #[allow(unused_assignments)]
         let mut r = quote::Tokens::new();
 
         for region in &fsm.regions {
@@ -415,7 +408,6 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
 
 pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
-
     let fsm_ty = fsm.get_fsm_ty();
     let fsm_ty_inline = fsm.get_fsm_ty_inline();
     let impl_suffix = fsm.get_impl_suffix();
@@ -423,8 +415,6 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     let states_ty = fsm.get_states_ty();
     let current_state_ty = fsm.get_current_state_ty();
     let states_store_ty = fsm.get_states_store_ty();
-    let actions_ty = fsm.get_actions_ty();
-    let history_ty = fsm.get_history_ty();
     let inspection_ty = fsm.get_inspection_ty();
     let ctx = &fsm.context_ty;
 
@@ -518,7 +508,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 {
                     let mut str_to_js = |key: &str, val: &str| {
                         let b: Vec<_> = val.bytes().map(|x| x.to_string()).collect();
-                        q.append(&format!("\n/// var {} = String.fromCharCode({}); \n", key, b.connect(", ")));
+                        q.append(&format!("\n/// var {} = String.fromCharCode({}); \n", key, b.join(", ")));
                     };
 
                     str_to_js("viz_js", js_file);
@@ -532,7 +522,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
 
                 q
             };
-            let mut q = quote! {
+            let q = quote! {
                 /// A generated state machine.
                 ///
                 /// <span>
@@ -654,8 +644,6 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
 }
 
 pub fn build_on_handlers(fsm: &FsmDescription) -> quote::Tokens {
-
-    let fsm_ty = fsm.get_fsm_ty();
     let events_ty = fsm.get_events_ty();
     let states_ty = fsm.get_states_ty();
 

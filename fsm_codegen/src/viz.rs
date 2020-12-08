@@ -17,14 +17,14 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
     let mut subs = quote::Tokens::new();
 
     let mut out = String::new();
-    writeln!(out, "var f = newFsm(cy, '{}', '##parent##'); var fsm_{} = f;", fsm.name, fsm.name);
+    writeln!(out, "var f = newFsm(cy, '{}', '##parent##'); var fsm_{} = f;", fsm.name, fsm.name).unwrap();
 
     for region in &fsm.regions {
         let var_region = format!("{}_region_{}", fsm.name, region.id);
-        writeln!(out, r#"var {} = f.add_region("Region {}");"#, var_region, region.id);
+        writeln!(out, r#"var {} = f.add_region("Region {}");"#, var_region, region.id).unwrap();
 
         let initial_name = ty_to_string(&region.initial_state_ty);
-        writeln!(out, r#"var state_{} = {}.add_initial_state("{}");"#, initial_name, var_region, initial_name);
+        writeln!(out, r#"var state_{} = {}.add_initial_state("{}");"#, initial_name, var_region, initial_name).unwrap();
         for state in &region.get_all_internal_states() {
             if state == &region.initial_state_ty {
                 continue;
@@ -36,16 +36,16 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
             let info = format!(r#"{{ is_initial_state: {:?}, is_interrupt_state: {:?} }}"#, is_initial_state, is_interrupt_state);
 
             let name = ty_to_string(state);
-            writeln!(out, r#"var state_{} = {}.add_state("{}", {});"#, name, var_region, name, info);
+            writeln!(out, r#"var state_{} = {}.add_state("{}", {});"#, name, var_region, name, info).unwrap();
         }
 
         for sub in region.get_all_states().iter().filter(|ref x| fsm.is_submachine(x)) {
             let s = ty_to_string(&sub);
 
             // submachines
-            writeln!(out, "// submachine {} start", s);
-            writeln!(out, "// ##SUB_{}##", s);
-            writeln!(out, "// submachine {} end", s);
+            writeln!(out, "// submachine {} start", s).unwrap();
+            writeln!(out, "// ##SUB_{}##", s).unwrap();
+            writeln!(out, "// submachine {} end", s).unwrap();
 
             {
                 let a = format!("// ##SUB_{}##", s);
@@ -65,7 +65,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
 
             let is_shallow_history = fsm.shallow_history_events.iter().find(|ref x| &x.event_ty == &transition.event && &x.target_state_ty == &transition.target_state).is_some();
             let is_resume_event = region.interrupt_states.iter().any(|x| &x.interrupt_state_ty == &transition.source_state && x.resume_event_ty.iter().any(|y| y == &transition.event));
-            let is_internal = transition.transition_type == TransitionType::Internal;
+            // let is_internal = transition.transition_type == TransitionType::Internal;
             let is_anonymous = transition.is_anonymous_transition();
 
             let guard_json = match transition.guard {
@@ -85,7 +85,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
                     if is_shallow_history {
                         (format!("state_{}", s_from), format!("fsm_{}", s_to))
                     } else {
-                        writeln!(out, r#"fsm_{}.add_transition_to_start({}, {});"#, s_to, format!("state_{}", s_from), data);
+                        writeln!(out, r#"fsm_{}.add_transition_to_start({}, {});"#, s_to, format!("state_{}", s_from), data).unwrap();
                         continue;
                     }
                 } else {
@@ -93,7 +93,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
                 }
             };
 
-            writeln!(out, r#"{}.add_transition({}, {}, {});"#, var_region, from, to, data);
+            writeln!(out, r#"{}.add_transition({}, {}, {});"#, var_region, from, to, data).unwrap();
         }
     }
 

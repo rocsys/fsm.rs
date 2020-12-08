@@ -130,7 +130,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                         continue;
                     }
 
-                } else if let Ok(g) = match_type_grab_generics(&p, "CopyableEvents") {
+                } else if let Ok(_) = match_type_grab_generics(&p, "CopyableEvents") {
                     copyable_events = true;
                 } else if let Ok(g) = match_type_grab_generics(&p, "InspectionType") {
                     if let Some(t) = g.get(1) {
