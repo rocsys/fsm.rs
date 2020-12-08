@@ -634,6 +634,10 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 #initial_state
             }
 
+            pub fn get_context_mut(&mut self) -> &mut #ctx {
+                &mut self.context
+            }
+
             pub fn get_context(&self) -> &#ctx {
                 &self.context
             }
