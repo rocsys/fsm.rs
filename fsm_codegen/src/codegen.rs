@@ -1,7 +1,7 @@
 extern crate quote;
 
-use fsm_def::*;
-use viz::*;
+use crate::fsm_def::*;
+use crate::viz::*;
 
 use quote::*;
 
@@ -191,7 +191,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     if is_shallow == false {
                         sub_init = quote! {
                             {
-                                self.states.#target_state_field.start();
+                                self.states.#target_state_field.start().await;
                                 self.states.#f = true;
                                 just_called_start = true;
                             }
@@ -206,7 +206,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     sub_state_exit = quote! {
                         {
                             let s = self.states.#source_state_field.get_current_state();
-                            self.states.#source_state_field.call_on_exit(s);
+                            self.states.#source_state_field.call_on_exit(s).await;
                         }
                     };
                 }
@@ -216,20 +216,20 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     sub_state_entry = quote! {
                         {
                             let s = self.states.#target_state_field.get_current_state();
-                            self.states.#target_state_field.call_on_entry(s);
+                            self.states.#target_state_field.call_on_entry(s).await;
                         }
                     };
                 }
 
 
                 let mut state_exit = quote! {
-                    self.inspection.on_state_exit(&current_state, &event_ctx);
-                    self.states.#source_state_field.on_exit(&mut event_ctx);
+                    self.inspection.on_state_exit(&current_state, &event_ctx).await;
+                    self.states.#source_state_field.on_exit(&mut event_ctx).await;
                 };
 
                 let mut state_entry = quote! {
-                    self.inspection.on_state_entry(&#states_ty::#target_state, &event_ctx);
-                    self.states.#target_state_field.on_entry(&mut event_ctx);
+                    self.inspection.on_state_entry(&#states_ty::#target_state, &event_ctx).await;
+                    self.states.#target_state_field.on_entry(&mut event_ctx).await;
                 };
 
                 if transition.transition_type == TransitionType::Internal {
@@ -260,7 +260,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                         #state_exit
                         #sub_state_exit
 
-                        self.inspection.on_action(&current_state, &event_ctx);
+                        self.inspection.on_action(&current_state, &event_ctx).await;
                         #action_call
 
 
@@ -272,7 +272,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                             #sub_state_entry
                         }
 
-                        self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx);
+                        self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx).await;
                         #state_set = #states_ty::#target_state;
 
 
@@ -349,7 +349,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
             return_result.append(quote! {
                 if #r == Err(FsmError::NoTransition) {
-                    self.inspection.on_no_transition(&#q, &event_ctx);
+                    self.inspection.on_no_transition(&#q, &event_ctx).await;
                 }
                 if res.is_none() && #r.is_ok() {
                     res = Some(#r);
@@ -366,15 +366,15 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
     } else {
         return_result = quote! {
             if res == Err(FsmError::NoTransition) {
-                self.inspection.on_no_transition(&self.state, &event_ctx);
+                self.inspection.on_no_transition(&self.state, &event_ctx).await;
             }
         }
     }
 
     let f = quote! {
-        fn process_event(&mut self, event: #events_ty) -> Result<(), FsmError> {
+        async fn process_event(&mut self, event: #events_ty) -> Result<(), FsmError> {
             if self.execute_queue_pre {
-                self.execute_queued_events();
+                self.execute_queued_events().await;
             }
 
             let res = {
@@ -402,7 +402,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
             };
 
             if self.execute_queue_post {
-                self.execute_queued_events();
+                self.execute_queued_events().await;
             }
 
             return res;
@@ -432,7 +432,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
 
     let mut start = quote! {
         self.state = Self::new_initial_state();
-        let no = Self::E::new_no_event();
+        let no = <Self::E as FsmEvents<Self>>::new_no_event();
     };
 
     for region in &fsm.regions {
@@ -447,14 +447,14 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                     context: &mut self.context,
                     current_state: self.state
                 };
-                self.states.#initial_state_field.on_entry(&mut event_ctx);
+                self.states.#initial_state_field.on_entry(&mut event_ctx).await;
             }
         }.as_str());
     }
 
     start.append(quote! {
-        self.process_event(no);
-        self.process_anonymous_transitions();
+        self.process_event(no).await;
+        self.process_anonymous_transitions().await;
     }.as_str());
 
 
@@ -578,6 +578,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             pub execute_queue_post: bool
         }
 
+        #[async_trait]
         impl #impl_suffix Fsm for #fsm_ty {
             type E = #events_ty;
             type S = #states_ty;
@@ -598,11 +599,11 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 }
             }
 
-            fn start(&mut self) {
+            async fn start(&mut self) {
                 #start
             }
 
-	        fn stop(&mut self) {
+	        async fn stop(&mut self) {
                 #stop
             }
 
@@ -626,6 +627,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 &mut self.states
             }
 
+            #sub_on_handlers
             #transitions
         }
 
@@ -646,7 +648,6 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                  module_path!()
             }
 
-            #sub_on_handlers
             #viz
         }
     }
@@ -669,21 +670,21 @@ pub fn build_on_handlers(fsm: &FsmDescription) -> quote::Tokens {
 
         on_entry.append(quote!{
             #states_ty::#state => {
-                self.states.#f.on_entry(&mut event_ctx);
-                self.inspection.on_state_entry(&state, &event_ctx);
+                self.states.#f.on_entry(&mut event_ctx).await;
+                self.inspection.on_state_entry(&state, &event_ctx).await;
             },
         }.as_str());
 
         on_exit.append(quote!{
             #states_ty::#state => {
-                self.states.#f.on_exit(&mut event_ctx);
-                self.inspection.on_state_exit(&state, &event_ctx);
+                self.states.#f.on_exit(&mut event_ctx).await;
+                self.inspection.on_state_exit(&state, &event_ctx).await;
             },
         }.as_str());
     }
 
     quote! {
-        pub fn call_on_entry(&mut self, state: #states_ty) {
+        async fn call_on_entry(&mut self, state: #states_ty) {
             let no = #events_ty::new_no_event();
             let mut event_ctx = EventContext {
                 event: &no,
@@ -697,7 +698,7 @@ pub fn build_on_handlers(fsm: &FsmDescription) -> quote::Tokens {
             }
         }
 
-        pub fn call_on_exit(&mut self, state: #states_ty) {
+        async fn call_on_exit(&mut self, state: #states_ty) {
             let no = #events_ty::new_no_event();
             let mut event_ctx = EventContext {
                 event: &no,

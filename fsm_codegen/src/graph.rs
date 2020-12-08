@@ -1,6 +1,7 @@
 extern crate syn;
 
-use fsm_def::*;
+use crate::fsm_def::*;
+
 use petgraph::*;
 
 use petgraph::dot::{
@@ -30,7 +31,7 @@ impl fmt::Display for NodeData {
 }
 
 pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<syn::Ty>, submachines: &Vec<syn::Ty>, interrupt_states: &Vec<FsmInterruptState>) -> Vec<FsmRegion> {
-    
+
     let mut gr = Graph::new();
     let mut nodes = HashMap::new();
 
@@ -49,11 +50,11 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
                 let s = ty_to_string(ty);
 
                 let mut node = None;
-                                
+
                 if let Some(n) = nodes.get(&s) {
                     node = Some(*n);
                 }
-                
+
                 if node.is_none() {
                     let n = gr.add_node(NodeData { state: s.clone(), region: orphan_region });
                     nodes.insert(s, n);
@@ -79,7 +80,7 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
         let mut dfs = Dfs::new(&gr, *node);
         while let Some(nx) = dfs.next(&gr) {
             gr[nx].region = region_id;
-        }        
+        }
 
         regions.push(FsmRegion {
             submachines: Vec::new(),
@@ -95,7 +96,7 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
     if initial_states.len() != region_id {
         panic!("Mismatch between the length of the state tuple and number of detected regions: {} state tuple length, {} regions", initial_states.len(), region_id);
     }
-    
+
     for node in gr.raw_nodes() {
         if node.weight.region == orphan_region {
             panic!("Unreachable state: {}", node.weight.state);
@@ -122,6 +123,6 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
             }
         }
     }
-    
+
     regions
 }

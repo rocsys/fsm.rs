@@ -1,7 +1,7 @@
 extern crate quote;
 extern crate syn;
 
-use fsm_def::*;
+use crate::fsm_def::*;
 
 #[cfg(not(feature = "viz"))]
 pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
@@ -46,7 +46,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
             writeln!(out, "// submachine {} start", s);
             writeln!(out, "// ##SUB_{}##", s);
             writeln!(out, "// submachine {} end", s);
-            
+
             {
                 let a = format!("// ##SUB_{}##", s);
                 let p = format!("fsm_{}", fsm.name);
@@ -62,7 +62,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
             let ev = ty_to_string(&transition.event);
             let ac = ty_to_string(&transition.action);
 
-            
+
             let is_shallow_history = fsm.shallow_history_events.iter().find(|ref x| &x.event_ty == &transition.event && &x.target_state_ty == &transition.target_state).is_some();
             let is_resume_event = region.interrupt_states.iter().any(|x| &x.interrupt_state_ty == &transition.source_state && x.resume_event_ty.iter().any(|y| y == &transition.event));
             let is_internal = transition.transition_type == TransitionType::Internal;
@@ -81,7 +81,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
                 if fsm.is_submachine(&transition.source_state) {
                     (format!("fsm_{}", s_from), format!("state_{}", s_to))
                 } else if fsm.is_submachine(&transition.target_state) {
-                    
+
                     if is_shallow_history {
                         (format!("state_{}", s_from), format!("fsm_{}", s_to))
                     } else {
@@ -97,10 +97,10 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
         }
     }
 
-    
+
 
     quote! {
-        fn viz_cytoscape_fsm(parent: &str) -> String {            
+        fn viz_cytoscape_fsm(parent: &str) -> String {
             let t = (#out).replace("##parent##", parent);
             #subs
             t
@@ -124,7 +124,7 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
 #[cfg(feature = "viz")]
 pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
     let fn_name = fsm.get_build_viz_fn();
-    let fn_name_docs = fsm.get_build_viz_docs_fn();    
+    let fn_name_docs = fsm.get_build_viz_docs_fn();
     let ty = fsm.get_fsm_ty_inline();
     let ref ty_str = fsm.name;
 
@@ -133,9 +133,9 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
 
 
     let output_file = quote! {
-        let f: String = {                
+        let f: String = {
             let f: Vec<_> = file!().split('.').collect();
-            
+
             if let Some(i) = f.iter().rposition(|&x| x == "rs") {
                 let l: String = f[i-1].to_string();
                 let s: Vec<_> = l.split(|c| c == '/' || c == '\\' || c == ':').collect();
@@ -178,7 +178,7 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
                 {
                     let d = #fs_html.replace("##VIZ_JS_FSM##", &output_js);
                     let output_html = format!("{}fsm_viz_{}.html", dir, #ty_str);
-                    
+
                     let mut f = fs::File::create(&output_html).unwrap();
                     f.write_all(d.as_bytes()).unwrap();
                 }
@@ -188,13 +188,13 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
             }
         }
     };
-    
+
 
     quote! {
         #[test]
         #[cfg(test)]
         fn #fn_name () {
-            
+
             #output_file
             let output_file = format!("{}_{}.html", f, #ty_str);
 
