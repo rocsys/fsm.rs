@@ -2,6 +2,8 @@ extern crate fsm;
 #[macro_use]
 extern crate fsm_codegen;
 
+use async_trait::async_trait;
+
 use fsm::*;
 
 #[derive(Clone, PartialEq, Default, Debug)]
@@ -26,14 +28,17 @@ impl FsmEvent for EventStop {}
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateA { a: usize }
+#[async_trait]
 impl FsmState<FsmMinTwo> for StateA { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateB { b: usize }
+#[async_trait]
 impl FsmState<FsmMinTwo> for StateB { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateC { c: usize }
+#[async_trait]
 impl FsmState<FsmMinTwo> for StateC { }
 
 #[derive(Fsm)]
@@ -53,12 +58,12 @@ struct FsmMinTwoDefinition(
 );
 
 #[cfg(test)]
-#[test]
-fn test_fsm_min2() {
+#[tokio::test]
+async fn test_fsm_min2() {
     let mut fsm = FsmMinTwo::new(());
-    fsm.start();
+    fsm.start().await;
     assert_eq!(FsmMinTwoStates::StateA, fsm.get_current_state());
 
-    fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).unwrap();
+    fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).await.unwrap();
     assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state());
 }

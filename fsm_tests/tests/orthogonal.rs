@@ -3,6 +3,8 @@ extern crate fsm;
 #[macro_use]
 extern crate fsm_codegen;
 
+use async_trait::async_trait;
+
 
 use fsm::*;
 
@@ -36,38 +38,45 @@ impl FsmEvent for ErrorFixed {}
 
 #[derive(Clone, PartialEq, Default)]
 pub struct InitialA;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for InitialA { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct InitialB;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for InitialB { }
 
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateA;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for StateA { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateB;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for StateB { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct FixedC;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for FixedC { }
 
 
 
 #[derive(Clone, PartialEq, Default)]
 pub struct AllOk;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for AllOk { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct ErrorMode;
+#[async_trait]
 impl<'a> FsmState<Ortho<'a>> for ErrorMode { }
 
 
 pub struct OrthoContext<'a> {
-    id: &'a str   
+    id: &'a str
 }
 
 
@@ -75,7 +84,7 @@ pub struct OrthoContext<'a> {
 struct OrthoDefinition<'a>(
     InitialState<Ortho<'a>, (InitialA, InitialB, FixedC, AllOk)>,
 	ContextType<OrthoContext<'a>>,
-    
+
 
     Transition        < Ortho<'a>,  InitialA,  EventA,   StateA,   NoAction>,
     Transition        < Ortho<'a>,  StateA,    EventA2,  InitialA, NoAction>,
@@ -91,8 +100,8 @@ struct OrthoDefinition<'a>(
 
 
 #[cfg(test)]
-#[test]
-fn test_orthogonal() {
+#[tokio::test]
+async fn test_orthogonal() {
 
     let id = "fsm_a";
     let ctx = OrthoContext {
@@ -100,25 +109,25 @@ fn test_orthogonal() {
     };
 	let mut fsm = Ortho::new(ctx);
 
-	fsm.start();
+	fsm.start().await;
 
     assert_eq!((OrthoStates::InitialA, OrthoStates::InitialB, OrthoStates::FixedC, OrthoStates::AllOk), fsm.get_current_state());
 
-    fsm.process_event(OrthoEvents::EventA(EventA)).unwrap();
+    fsm.process_event(OrthoEvents::EventA(EventA)).await.unwrap();
     assert_eq!((OrthoStates::StateA, OrthoStates::InitialB, OrthoStates::FixedC, OrthoStates::AllOk), fsm.get_current_state());
 
-    fsm.process_event(OrthoEvents::EventB(EventB)).unwrap();
+    fsm.process_event(OrthoEvents::EventB(EventB)).await.unwrap();
     assert_eq!((OrthoStates::StateA, OrthoStates::StateB, OrthoStates::FixedC, OrthoStates::AllOk), fsm.get_current_state());
 
 
-    fsm.process_event(OrthoEvents::ErrorDetected(ErrorDetected)).unwrap();
+    fsm.process_event(OrthoEvents::ErrorDetected(ErrorDetected)).await.unwrap();
     assert_eq!((OrthoStates::StateA, OrthoStates::StateB, OrthoStates::FixedC, OrthoStates::ErrorMode), fsm.get_current_state());
 
-    assert_eq!(fsm.process_event(OrthoEvents::EventA2(EventA2)), Err(FsmError::Interrupted));
+    assert_eq!(fsm.process_event(OrthoEvents::EventA2(EventA2)).await, Err(FsmError::Interrupted));
 
-    fsm.process_event(OrthoEvents::ErrorFixed(ErrorFixed)).unwrap();
+    fsm.process_event(OrthoEvents::ErrorFixed(ErrorFixed)).await.unwrap();
     assert_eq!((OrthoStates::StateA, OrthoStates::StateB, OrthoStates::FixedC, OrthoStates::AllOk), fsm.get_current_state());
 
-    
+
 
 }
