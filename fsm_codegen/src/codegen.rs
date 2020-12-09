@@ -12,6 +12,7 @@ pub fn build_state_store(fsm: &FsmDescription) -> quote::Tokens {
     let impl_suffix = fsm.get_impl_suffix();
     let states_ty = fsm.get_states_ty();
     let states_store_ty = fsm.get_states_store_ty();
+    let context_ty = &fsm.context_ty;
 
     let mut retr = quote::Tokens::new();
 
@@ -41,7 +42,7 @@ pub fn build_state_store(fsm: &FsmDescription) -> quote::Tokens {
                 fn get_state_mut(&mut self) -> &mut #state {
                     &mut self.#field_name
                 }
-            }            
+            }
         }.as_str());
     }
 
@@ -57,7 +58,7 @@ pub fn build_state_store(fsm: &FsmDescription) -> quote::Tokens {
         }
 
         impl #states_store_ty {
-            pub fn new<C>(context: &C) -> #states_store_ty {
+            pub fn new<'a>(context: &#context_ty) -> #states_store_ty {
                 #states_store_ty {
                     #n
                 }
@@ -90,7 +91,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
         let mut t = quote::Tokens::new();
         event.to_tokens(&mut t);
         if t.as_str() == "NoEvent" { continue; }
-        
+
         events_types.append(quote! { #event(#event), }.as_str());
         event_traits.append(quote! {
             impl From<#event> for #events_ty {
@@ -113,7 +114,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
     for state in &fsm.get_all_states() {
         state_types.append(quote! { #state, }.as_str());
     }
-    
+
     quote! {
         // Events
         #[derive(Debug)]
@@ -210,7 +211,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     };
                 }
 
-                
+
                 if fsm.is_submachine(&target_state) {
                     sub_state_entry = quote! {
                         {
@@ -230,7 +231,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     self.inspection.on_state_entry(&#states_ty::#target_state, &event_ctx);
                     self.states.#target_state_field.on_entry(&mut event_ctx);
                 };
-                
+
                 if transition.transition_type == TransitionType::Internal {
                     state_exit = quote! {};
                     state_entry = quote! {};
@@ -244,7 +245,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     quote! {}
                 };
 
-                let state_set = if fsm.has_multiple_regions() { 
+                let state_set = if fsm.has_multiple_regions() {
                     let mut q = quote! { self.state. };
                     q.append(&region.id.to_string());
                     q
@@ -252,16 +253,16 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                     quote! { self.state }
                 };
 
-                
+
                 let s = quote! {
                     (#states_ty::#state, &#events_ty::#event(_)) #guard => {
 
                         #state_exit
                         #sub_state_exit
-                        
+
                         self.inspection.on_action(&current_state, &event_ctx);
                         #action_call
-                        
+
 
                         let mut just_called_start = false;
                         #sub_init
@@ -273,7 +274,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
                         self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx);
                         #state_set = #states_ty::#target_state;
-                        
+
 
                         Ok(())
                     },
@@ -282,16 +283,16 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                 tq.append(s.as_str());
             }
 
-            q.append(tq.as_str());      
+            q.append(tq.as_str());
         }
 
-        let (region_state_field, result) = if fsm.has_multiple_regions() { 
+        let (region_state_field, result) = if fsm.has_multiple_regions() {
             let mut q = quote! { self.state. };
             q.append(&region.id.to_string());
 
             let mut r = quote::Tokens::new();
             r.append(&format!("r{}", region.id));
-            (q, r)            
+            (q, r)
         } else {
             (quote! { self.state }, quote! { res })
         };
@@ -332,11 +333,11 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
 
     }
-    
+
     let mut return_result = quote! {
         let mut res = None;
     };
-    if fsm.has_multiple_regions() {                 
+    if fsm.has_multiple_regions() {
         let mut r = quote::Tokens::new();
 
         for region in &fsm.regions {
@@ -345,7 +346,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
             r = quote::Tokens::new();
             r.append(&format!("r{}", region.id));
-            
+
             return_result.append(quote! {
                 if #r == Err(FsmError::NoTransition) {
                     self.inspection.on_no_transition(&#q, &event_ctx);
@@ -359,7 +360,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
             }.as_str());
         }
 
-        return_result.append(quote! {            
+        return_result.append(quote! {
             let res = res.unwrap_or(Err(FsmError::NoTransition));
         }.as_str());
     } else {
@@ -426,7 +427,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     let history_ty = fsm.get_history_ty();
     let inspection_ty = fsm.get_inspection_ty();
     let ctx = &fsm.context_ty;
-    
+
     let transitions = build_state_transitions(fsm);
 
     let mut start = quote! {
@@ -438,7 +439,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
         let initial_state = &region.initial_state_ty;
         let initial_state_field = FsmDescription::to_state_field_name(initial_state);
 
-        start.append(quote! {                        
+        start.append(quote! {
             {
                 let mut event_ctx = EventContext {
                     event: &no,
@@ -456,7 +457,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
         self.process_anonymous_transitions();
     }.as_str());
 
-    
+
 
     let mut stop = quote! {};
     if fsm.has_multiple_regions() {
@@ -469,8 +470,8 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             stop.append(quote! {
                 self.call_on_exit(#q);
             }.as_str());
-        }        
-    } else {        
+        }
+    } else {
         stop = quote! {
             {
                 let s = self.get_current_state();
@@ -478,12 +479,12 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             }
         };
     }
-    
+
     let sub_on_handlers = build_on_handlers(fsm);
 
     let initial_state = {
         let st: Vec<_> = fsm.regions.iter().map(|x| {
-            let mut t = quote! { #states_ty:: };            
+            let mut t = quote! { #states_ty:: };
             x.initial_state_ty.to_tokens(&mut t);
             t
         }).collect();
@@ -492,7 +493,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             ( #(#st),* )
         }
     };
-    
+
     let viz = build_viz(&fsm);
 
 
@@ -507,10 +508,10 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
         #[cfg(not(feature = "viz_docs"))]
         () => quote! {},
         #[cfg(feature = "viz_docs")]
-        () => 
+        () =>
         {
             let js_file = &format!("fsm_viz_{}.js", ty_to_string(&fsm_ty_inline));
-            let viz_html_file = &format!("fsm_viz_{}.html", ty_to_string(&fsm_ty_inline));            
+            let viz_html_file = &format!("fsm_viz_{}.html", ty_to_string(&fsm_ty_inline));
             let js_file_js = {
                 let mut q = quote! {};
 
@@ -536,7 +537,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 ///
                 /// <span>
                 /// <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-                /// <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.1.0/cytoscape.js"></script>                
+                /// <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.1.0/cytoscape.js"></script>
                 /// <div id="cy" style="width: 100%; height: 500px;"></div>
                 /// <script type="text/javascript">
                 /// $(function() {
@@ -582,9 +583,9 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             type S = #states_ty;
             type SS = #states_store_ty;
             type C = #ctx;
-            type CS = #current_state_ty;            
-            
-            fn new(context: Self::C) -> Self {                
+            type CS = #current_state_ty;
+
+            fn new(context: Self::C) -> Self {
                 #fsm_ty_inline {
                     state: Self::new_initial_state(),
                     states: #states_store_ty::new(&context),
@@ -628,11 +629,11 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             #transitions
         }
 
-        impl #impl_suffix #fsm_ty {            
+        impl #impl_suffix #fsm_ty {
             fn new_initial_state() -> #current_state_ty {
                 #initial_state
             }
-            
+
             pub fn get_context(&self) -> &#ctx {
                 &self.context
             }
@@ -648,7 +649,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
 }
 
 pub fn build_on_handlers(fsm: &FsmDescription) -> quote::Tokens {
-    
+
     let fsm_ty = fsm.get_fsm_ty();
     let events_ty = fsm.get_events_ty();
     let states_ty = fsm.get_states_ty();
