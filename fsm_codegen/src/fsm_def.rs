@@ -41,11 +41,13 @@ impl FsmRegion {
         self.transitions.iter().map(|ref x| &x.source_state).chain(self.transitions.iter().map(|ref x| &x.target_state)).unique_by(|x| *x).cloned().collect()
     }
 
+    #[allow(dead_code)]
     pub fn get_all_internal_states(&self) -> Vec<syn::Ty> {
         // warning: quadratic!
         self.get_all_states().iter().filter(|ref x| !self.is_submachine(x)).cloned().collect()
     }
 
+    #[allow(dead_code)]
     pub fn is_submachine(&self, ty: &syn::Ty) -> bool {
         self.submachines.iter().find(|x| x == &ty).is_some()
     }
@@ -147,10 +149,12 @@ impl FsmDescription {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_build_viz_fn(&self) -> syn::Ty {
         syn::parse_type(&format!("build_viz_{}", self.name)).unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn get_build_viz_docs_fn(&self) -> syn::Ty {
         syn::parse_type(&format!("build_viz_docs_{}", self.name)).unwrap()
     }
@@ -246,6 +250,7 @@ impl TransitionEntry {
         self.source_state == self.target_state
     }
 
+    #[allow(dead_code)]
     pub fn is_anonymous_transition(&self) -> bool {
         self.event == syn::parse_type("NoEvent").unwrap()
     }

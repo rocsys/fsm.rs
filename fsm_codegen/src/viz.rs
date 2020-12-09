@@ -4,7 +4,7 @@ extern crate syn;
 use crate::fsm_def::*;
 
 #[cfg(not(feature = "viz"))]
-pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
+pub fn build_viz(_: &FsmDescription) -> quote::Tokens {
     quote! {}
 }
 
@@ -117,7 +117,7 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
 }
 
 #[cfg(not(feature = "viz"))]
-pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
+pub fn build_test_viz_build(_: &FsmDescription) -> quote::Tokens {
     quote! { }
 }
 
