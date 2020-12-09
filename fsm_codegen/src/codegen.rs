@@ -443,8 +443,8 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     }
 
     start.append(quote! {
-        self.process_event(no).await;
-        self.process_anonymous_transitions().await;
+        self.process_event(no).await.unwrap();
+        self.process_anonymous_transitions().await.unwrap();
     }.as_str());
 
 
@@ -458,14 +458,14 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             let mut q = Tokens::new();
             q.append(&format!("s.{}", region.id));
             stop.append(quote! {
-                self.call_on_exit(#q);
+                self.call_on_exit(#q).await;
             }.as_str());
         }
     } else {
         stop = quote! {
             {
                 let s = self.get_current_state();
-                self.call_on_exit(s);
+                self.call_on_exit(s).await;
             }
         };
     }
