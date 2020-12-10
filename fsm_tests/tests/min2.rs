@@ -42,6 +42,7 @@ pub struct StateC { c: usize }
 impl FsmState<FsmMinTwo> for StateC { }
 
 #[derive(Fsm)]
+#[allow(dead_code)]
 struct FsmMinTwoDefinition(
 	InitialState<FsmMinTwo, StateA>,
 

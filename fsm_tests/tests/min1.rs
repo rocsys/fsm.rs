@@ -15,6 +15,7 @@ impl FsmState<FsmMinOne> for StaticA {
 }
 
 #[derive(Fsm)]
+#[allow(dead_code)]
 struct FsmMinOneDefinition(
 	InitialState<FsmMinOne, StaticA>
 );

@@ -99,7 +99,7 @@ impl FsmState<Player> for Playing {
 
 #[async_trait]
 impl FsmStateFactory<PlayerContext> for Playing {
-    fn new_state(parent_context: &PlayerContext) -> Self {
+    fn new_state(_parent_context: &PlayerContext) -> Self {
         Playing::new(Default::default())
     }
 }
@@ -108,7 +108,7 @@ impl FsmStateFactory<PlayerContext> for Playing {
 
 pub struct StartPlayback;
 impl FsmAction<Player, Stopped, Playing> for StartPlayback {
-	fn action(event_context: &mut EventContext<'_, Player>, source_state: &mut Stopped, target_state: &mut Playing) {		
+	fn action(event_context: &mut EventContext<'_, Player>, _source_state: &mut Stopped, _target_state: &mut Playing) {		
         println!("StartPlayback");
         event_context.context.start_playback_counter += 1;
 	}
@@ -347,7 +347,7 @@ async fn main() {
 
     let mut p = Player::new(Default::default());
 
-	p.start();
+	p.start().await;
     assert_eq!(1, p.get_context().action_empty_entry_counter);
 
     p.process_event(PlayerEvents::OpenClose(OpenClose)).await.unwrap();

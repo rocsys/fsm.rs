@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate fsm;
 #[macro_use]
 extern crate fsm_codegen;
@@ -74,13 +73,14 @@ pub struct ErrorMode;
 #[async_trait]
 impl<'a> FsmState<Ortho<'a>> for ErrorMode { }
 
-
+#[allow(dead_code)]
 pub struct OrthoContext<'a> {
     id: &'a str
 }
 
 
 #[derive(Fsm)]
+#[allow(dead_code)]
 struct OrthoDefinition<'a>(
     InitialState<Ortho<'a>, (InitialA, InitialB, FixedC, AllOk)>,
 	ContextType<OrthoContext<'a>>,

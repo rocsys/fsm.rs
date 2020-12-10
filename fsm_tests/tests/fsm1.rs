@@ -48,11 +48,11 @@ pub struct Initial {
 }
 #[async_trait]
 impl FsmState<FsmOne> for Initial {
-	async fn on_entry(&mut self, event_context: &mut EventContext<'_, FsmOne>) {
+	async fn on_entry(&mut self, _event_context: &mut EventContext<'_, FsmOne>) {
 		self.entry += 1;
 	}
 
-	async fn on_exit(&mut self, event_context: &mut EventContext<'_, FsmOne>) {
+	async fn on_exit(&mut self, _event_context: &mut EventContext<'_, FsmOne>) {
 		self.exit += 1;
 	}
 }
@@ -65,12 +65,12 @@ pub struct State1 {
 }
 #[async_trait]
 impl FsmState<FsmOne> for State1  {
-	async fn on_entry(&mut self, event_context: &mut EventContext<'_, FsmOne>) {
+	async fn on_entry(&mut self, _event_context: &mut EventContext<'_, FsmOne>) {
 		println!("State1 Entry!");
 		self.entry += 1;
 	}
 
-	async fn on_exit(&mut self, event_context: &mut EventContext<'_, FsmOne>) {
+	async fn on_exit(&mut self, _event_context: &mut EventContext<'_, FsmOne>) {
 		println!("State1 Exit!");
 		self.exit += 1;
 	}
@@ -88,32 +88,33 @@ impl FsmState<FsmOne> for State2 {
 
 pub struct InitAction;
 impl FsmAction<FsmOne, Initial, State1> for InitAction {
-	fn action(event_context: &mut EventContext<FsmOne>, source_state: &mut Initial, target_state: &mut State1) {
+	fn action(_event_context: &mut EventContext<FsmOne>, _source_state: &mut Initial, _target_state: &mut State1) {
 		println!("Init action!");
 	}
 }
 
 pub struct State1InternalAction;
 impl FsmActionSelf<FsmOne, State1> for State1InternalAction {
-	fn action(event_context: &mut EventContext<FsmOne>, state: &mut State1) {
+	fn action(_event_context: &mut EventContext<FsmOne>, state: &mut State1) {
 		state.internal_action += 1;
 	}
 }
 
 pub struct InternalTrigger;
 impl FsmActionSelf<FsmOne, State1> for InternalTrigger {
-	fn action(event_context: &mut EventContext<FsmOne>, state: &mut State1) {
-		event_context.queue.enqueue_event(FsmOneEvents::Event2(Event2));
+	fn action(event_context: &mut EventContext<FsmOne>, _state: &mut State1) {
+		event_context.queue.enqueue_event(FsmOneEvents::Event2(Event2)).unwrap();
 	}
 }
 
 #[derive(Default)]
 pub struct FsmOneContext {
-	guard1_exec: usize
+	_guard1_exec: usize
 }
 
 
 #[derive(Fsm)]
+#[allow(dead_code)]
 struct FsmOneDefinition(
 	InitialState<FsmOne, Initial>,
 	ContextType<FsmOneContext>,
