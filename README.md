@@ -88,7 +88,7 @@ async fn test_fsm_min2() {
     fsm.start().await;
     assert_eq!(FsmMinTwoStates::StateA, fsm.get_current_state());
 
-    fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)),await.unwrap();
+    fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).await.unwrap();
     assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state());
 }
 ```
