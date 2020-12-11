@@ -443,8 +443,13 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     }
 
     start.append(quote! {
-        self.process_event(no).await.unwrap();
-        self.process_anonymous_transitions().await.unwrap();
+        match self.process_event(no).await {
+            // The initial state receives a NoEvent which results in a NoTransition error. Hence, we ignore it
+            Err(FsmError::NoTransition) | Ok(_) => (),
+            Err(e) => panic!("Unknown error happens during starting the state machine: {:?}", e),
+        }
+
+        self.process_anonymous_transitions().await.ok();
     }.as_str());
 
 
