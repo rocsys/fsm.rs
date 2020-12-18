@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 async-trait = "0.1.42"
-tokio = { version = "0.3.5", features = ["full"] }
+tokio = { version = "0.2.21", features = ["full"] }
 
 fsm = { path = "../" }
 fsm_codegen = { path = "../fsm_codegen/", features = ["viz", "viz_docs"] }
