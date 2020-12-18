@@ -2,11 +2,10 @@ extern crate fsm;
 #[macro_use]
 extern crate fsm_codegen;
 
+use async_trait::async_trait;
+
 
 use fsm::*;
-
-
-
 
 // events
 #[derive(Clone, PartialEq, Debug)]
@@ -38,44 +37,48 @@ impl FsmEvent for CdDetected {}
 
 #[derive(Clone, Default)]
 pub struct Empty;
+#[async_trait]
 impl FsmState<Player> for Empty {
-	fn on_entry(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_entry(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_empty_entry_counter += 1;
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_empty_exit_counter += 1;
     }
 }
 
 #[derive(Clone, Default)]
 pub struct Open;
+#[async_trait]
 impl FsmState<Player> for Open {
-	fn on_entry(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_entry(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_open_entry_counter += 1;
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_open_exit_counter += 1;
     }
 }
 
 #[derive(Clone, Default)]
 pub struct Stopped;
+#[async_trait]
 impl FsmState<Player> for Stopped {
-    fn on_entry(&mut self, event_context: &mut EventContext<Player>) {
+    async fn on_entry(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_stopped_entry_counter += 1;
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_stopped_exit_counter += 1;
     }
 }
 
 #[derive(Clone, Default)]
 pub struct Paused;
+#[async_trait]
 impl FsmState<Player> for Paused {
-    fn on_entry(&mut self, event_context: &mut EventContext<Player>) {
+    async fn on_entry(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_paused_entry_counter += 1;
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.action_paused_exit_counter += 1;
     }
 }
@@ -83,18 +86,19 @@ impl FsmState<Player> for Paused {
 
 
 // Submachine entry/exit
+#[async_trait]
 impl FsmState<Player> for Playing {
-    fn on_entry(&mut self, event_context: &mut EventContext<Player>) {
+    async fn on_entry(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.playing_fsm_entry_counter += 1;
     }
 
-	fn on_exit(&mut self, event_context: &mut EventContext<Player>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Player>) {
         event_context.context.playing_fsm_exit_counter += 1;
     }
 }
 
 impl FsmStateFactory<PlayerContext> for Playing {
-    fn new_state(parent_context: &PlayerContext) -> Self {
+    fn new_state(_parent_context: &PlayerContext) -> Self {
         Playing::new(Default::default())
     }
 }
@@ -104,7 +108,7 @@ impl FsmStateFactory<PlayerContext> for Playing {
 
 pub struct StartPlayback;
 impl FsmAction<Player, Stopped, Playing> for StartPlayback {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Stopped, target_state: &mut Playing) {
+	fn action(event_context: &mut EventContext<'_, Player>, _source_state: &mut Stopped, _target_state: &mut Playing) {
         println!("StartPlayback");
         event_context.context.start_playback_counter += 1;
 	}
@@ -112,28 +116,28 @@ impl FsmAction<Player, Stopped, Playing> for StartPlayback {
 
 pub struct OpenDrawer;
 impl FsmAction<Player, Empty, Open> for OpenDrawer {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Empty, target_state: &mut Open) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Empty, _target_state: &mut Open) {
         println!("OpenDrawer");
 	}
 }
 impl FsmAction<Player, Stopped, Open> for OpenDrawer {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Stopped, target_state: &mut Open) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Stopped, _target_state: &mut Open) {
         println!("OpenDrawer");
 	}
 }
 
 pub struct CloseDrawer;
 impl FsmAction<Player, Open, Empty> for CloseDrawer {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Open, target_state: &mut Empty) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Open, _target_state: &mut Empty) {
         println!("CloseDrawer");
 	}
 }
 
 pub struct StoreCdInfo;
 impl FsmAction<Player, Empty, Stopped> for StoreCdInfo {
-    fn action(event_context: &mut EventContext<Player>, source_state: &mut Empty, target_state: &mut Stopped) {
-        match event_context.event {
-            &PlayerEvents::CdDetected(CdDetected { name: ref name }) => {
+    fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Empty, _target_state: &mut Stopped) {
+        match _event_context.event {
+            &PlayerEvents::CdDetected(CdDetected { ref name }) => {
                 println!("StoreCdInfo: name = {}", name);
             },
             _ => { panic!("Mismatched event!"); }
@@ -143,45 +147,45 @@ impl FsmAction<Player, Empty, Stopped> for StoreCdInfo {
 
 pub struct StopPlayback;
 impl FsmAction<Player, Playing, Stopped> for StopPlayback {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Playing, target_state: &mut Stopped) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Playing, _target_state: &mut Stopped) {
         println!("StopPlayback");
 	}
 }
 impl FsmAction<Player, Paused, Stopped> for StopPlayback {
-	fn action(eevent_context: &mut EventContext<Player>, source_state: &mut Paused, target_state: &mut Stopped) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Paused, _target_state: &mut Stopped) {
         println!("StopPlayback");
 	}
 }
 
 pub struct PausePlayback;
 impl FsmAction<Player, Playing, Paused> for PausePlayback {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Playing, target_state: &mut Paused) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Playing, _target_state: &mut Paused) {
         println!("PausePlayback");
 	}
 }
 
 pub struct ResumePlayback;
 impl FsmAction<Player, Paused, Playing> for ResumePlayback {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Paused, target_state: &mut Playing) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Paused, _target_state: &mut Playing) {
         println!("ResumePlayback");
 	}
 }
 
 pub struct StopAndOpen;
 impl FsmAction<Player, Playing, Open> for StopAndOpen {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Playing, target_state: &mut Open) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Playing, _target_state: &mut Open) {
         println!("StopAndOpen");
 	}
 }
 impl FsmAction<Player, Paused, Open> for StopAndOpen {
-	fn action(event_context: &mut EventContext<Player>, source_state: &mut Paused, target_state: &mut Open) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _source_state: &mut Paused, _target_state: &mut Open) {
         println!("StopAndOpen");
 	}
 }
 
 pub struct StoppedAgain;
 impl FsmActionSelf<Player, Stopped> for StoppedAgain {
-	fn action(event_context: &mut EventContext<Player>, state: &mut Stopped) {
+	fn action(_event_context: &mut EventContext<'_, Player>, _state: &mut Stopped) {
         println!("StoppedAgain");
 	}
 }
@@ -209,6 +213,7 @@ pub struct PlayerContext {
 
 
 #[derive(Fsm)]
+#[allow(dead_code)]
 struct PlayerDefinition(
 	InitialState<Player, Empty>,
 	ContextType<PlayerContext>,
@@ -252,12 +257,13 @@ impl FsmEvent for PreviousSong { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Song1;
+#[async_trait]
 impl FsmState<Playing> for Song1 {
-    fn on_entry(&mut self, event_context: &mut EventContext<Playing>) {
+    async fn on_entry(&mut self, event_context: &mut EventContext<'_, Playing>) {
         println!("Starting Song 1");
         event_context.context.song1_entry_counter += 1;
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Playing>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Playing>) {
         println!("Finishing Song 1");
         event_context.context.song1_exit_counter += 1;
     }
@@ -265,12 +271,13 @@ impl FsmState<Playing> for Song1 {
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Song2;
+#[async_trait]
 impl FsmState<Playing> for Song2 {
-    fn on_entry(&mut self, event_context: &mut EventContext<Playing>) {
+    async fn on_entry(&mut self, event_context: &mut EventContext<'_, Playing>) {
         println!("Starting Song 2");
         event_context.context.song2_entry_counter += 1;
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Playing>) {
+	async fn on_exit(&mut self, event_context: &mut EventContext<'_, Playing>) {
         println!("Finishing Song 2");
         event_context.context.song2_exit_counter += 1;
     }
@@ -278,11 +285,12 @@ impl FsmState<Playing> for Song2 {
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Song3;
+#[async_trait]
 impl FsmState<Playing> for Song3 {
-    fn on_entry(&mut self, event_context: &mut EventContext<Playing>) {
+    async fn on_entry(&mut self, _event_context: &mut EventContext<'_, Playing>) {
         println!("Starting Song 3");
     }
-	fn on_exit(&mut self, event_context: &mut EventContext<Playing>) {
+	async fn on_exit(&mut self, _event_context: &mut EventContext<'_, Playing>) {
         println!("Finishing Song 3");
     }
 }
@@ -292,24 +300,24 @@ impl FsmState<Playing> for Song3 {
 // Actions
 pub struct StartNextSong;
 impl FsmAction<Playing, Song1, Song2> for StartNextSong {
-	fn action(event_context: &mut EventContext<Playing>, source_state: &mut Song1, target_state: &mut Song2) {
+	fn action(_event_context: &mut EventContext<'_, Playing>, _source_state: &mut Song1, _target_state: &mut Song2) {
         println!("Playing::StartNextSong");
 	}
 }
 impl FsmAction<Playing, Song2, Song3> for StartNextSong {
-	fn action(event_context: &mut EventContext<Playing>, source_state: &mut Song2, target_state: &mut Song3) {
+	fn action(_event_context: &mut EventContext<'_, Playing>, _source_state: &mut Song2, _target_state: &mut Song3) {
         println!("Playing::StartNextSong");
 	}
 }
 
 pub struct StartPrevSong;
 impl FsmAction<Playing, Song2, Song1> for StartPrevSong {
-	fn action(event_context: &mut EventContext<Playing>, source_state: &mut Song2, target_state: &mut Song1) {
+	fn action(_event_context: &mut EventContext<'_, Playing>, _source_state: &mut Song2, _target_state: &mut Song1) {
         println!("Playing::StartPrevSong");
 	}
 }
 impl FsmAction<Playing, Song3, Song2> for StartPrevSong {
-	fn action(event_context: &mut EventContext<Playing>, source_state: &mut Song3, target_state: &mut Song2) {
+	fn action(_event_context: &mut EventContext<'_, Playing>, _source_state: &mut Song3, _target_state: &mut Song2) {
         println!("Playing::StartPrevSong");
 	}
 }
@@ -326,6 +334,7 @@ pub struct PlayingContext {
 }
 
 #[derive(Fsm)]
+#[allow(dead_code)]
 struct PlayingDefinition(
 	InitialState<Playing, Song1>,
     ContextType<PlayingContext>,
@@ -339,32 +348,32 @@ struct PlayingDefinition(
 
 
 #[cfg(test)]
-#[test]
-fn test_player() {
+#[tokio::test]
+async fn test_player() {
 
     let mut p = Player::new(Default::default());
 
-	p.start();
+	p.start().await;
     assert_eq!(1, p.get_context().action_empty_entry_counter);
 
-    p.process_event(PlayerEvents::OpenClose(OpenClose)).unwrap();
+    p.process_event(PlayerEvents::OpenClose(OpenClose)).await.unwrap();
     assert_eq!(PlayerStates::Open, p.get_current_state());
     assert_eq!(1, p.get_context().action_empty_exit_counter);
     assert_eq!(1, p.get_context().action_open_entry_counter);
 
 
-    p.process_event(PlayerEvents::OpenClose(OpenClose)).unwrap();
+    p.process_event(PlayerEvents::OpenClose(OpenClose)).await.unwrap();
     assert_eq!(PlayerStates::Empty, p.get_current_state());
     assert_eq!(2, p.get_context().action_empty_entry_counter);
     assert_eq!(1, p.get_context().action_open_exit_counter);
 
-    p.process_event(PlayerEvents::CdDetected(CdDetected { name: "louie, louie".to_string() })).unwrap();
+    p.process_event(PlayerEvents::CdDetected(CdDetected { name: "louie, louie".to_string() })).await.unwrap();
     assert_eq!(PlayerStates::Stopped, p.get_current_state());
     assert_eq!(1, p.get_context().action_stopped_entry_counter);
     assert_eq!(2, p.get_context().action_empty_exit_counter);
 
 
-    p.process_event(PlayerEvents::Play(Play)).unwrap();
+    p.process_event(PlayerEvents::Play(Play)).await.unwrap();
     assert_eq!(PlayerStates::Playing, p.get_current_state());
 
     assert_eq!(PlayingStates::Song1, p.states.playing.get_current_state());
@@ -377,7 +386,7 @@ fn test_player() {
 
     {
         let sub: &mut Playing = p.get_state_mut();
-        sub.process_event(PlayingEvents::NextSong(NextSong)).unwrap();
+        sub.process_event(PlayingEvents::NextSong(NextSong)).await.unwrap();
         assert_eq!(PlayingStates::Song2, sub.get_current_state());
         assert_eq!(1, sub.get_context().song1_exit_counter);
         assert_eq!(1, sub.get_context().song2_entry_counter);
@@ -387,7 +396,7 @@ fn test_player() {
     assert_eq!(0, p.get_context().playing_fsm_exit_counter);
 
 
-    p.process_event(PlayerEvents::Pause(Pause)).unwrap();
+    p.process_event(PlayerEvents::Pause(Pause)).await.unwrap();
     assert_eq!(PlayerStates::Paused, p.get_current_state());
     assert_eq!(1, p.get_context().action_paused_entry_counter);
     assert_eq!(1, p.get_context().playing_fsm_exit_counter);
@@ -397,7 +406,7 @@ fn test_player() {
         assert_eq!(1, sub.get_context().song2_exit_counter);
     }
 
-    p.process_event(PlayerEvents::EndPause(EndPause)).unwrap();
+    p.process_event(PlayerEvents::EndPause(EndPause)).await.unwrap();
     {
         let sub: &Playing = p.get_state();
         assert_eq!(PlayingStates::Song2, sub.get_current_state());
@@ -407,23 +416,23 @@ fn test_player() {
     assert_eq!(1, p.get_context().action_paused_exit_counter);
     assert_eq!(2, p.get_context().playing_fsm_entry_counter);
 
-    p.process_event(PlayerEvents::Pause(Pause)).unwrap();
+    p.process_event(PlayerEvents::Pause(Pause)).await.unwrap();
     assert_eq!(PlayerStates::Paused, p.get_current_state());
     assert_eq!(2, p.get_context().playing_fsm_exit_counter);
     assert_eq!(2, p.get_context().action_paused_entry_counter);
 
-    p.process_event(PlayerEvents::Stop(Stop)).unwrap();
+    p.process_event(PlayerEvents::Stop(Stop)).await.unwrap();
     assert_eq!(PlayerStates::Stopped, p.get_current_state());
     assert_eq!(2, p.get_context().action_paused_exit_counter);
     assert_eq!(2, p.get_context().action_stopped_entry_counter);
 
-    p.process_event(PlayerEvents::Stop(Stop)).unwrap();
+    p.process_event(PlayerEvents::Stop(Stop)).await.unwrap();
     assert_eq!(PlayerStates::Stopped, p.get_current_state());
     assert_eq!(2, p.get_context().action_stopped_exit_counter);
     assert_eq!(3, p.get_context().action_stopped_entry_counter);
 
 
-    p.process_event(PlayerEvents::Play(Play)).unwrap();
+    p.process_event(PlayerEvents::Play(Play)).await.unwrap();
     assert_eq!(PlayerStates::Playing, p.get_current_state());
     {
         let sub: &Playing = p.get_state();

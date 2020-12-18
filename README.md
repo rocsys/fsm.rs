@@ -16,9 +16,10 @@ Consider this a preview, undocumented, alpha-level release.
 - Queued events
 - Enum generation for event and state types
 - Internal state transitions that don't trigger the entry and exit events
-- Helpers for multiple entry states	
+- Helpers for multiple entry states
 - Graphviz visualisation, the codegen generates a test that saves the graph file to the filesystem
-- Inspection trait for custom debugging	
+- Inspection trait for custom debugging
+- Full async/await support for transition actions
 
 ## Example
 
@@ -51,14 +52,17 @@ impl FsmEvent for EventStop {}
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateA { a: usize }
+#[async_trait]
 impl FsmState<FsmMinTwo> for StateA { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateB { b: usize }
+#[async_trait]
 impl FsmState<FsmMinTwo> for StateB { }
 
 #[derive(Clone, PartialEq, Default)]
 pub struct StateC { c: usize }
+#[async_trait]
 impl FsmState<FsmMinTwo> for StateC { }
 
 #[derive(Fsm)]
@@ -78,13 +82,13 @@ struct FsmMinTwoDefinition(
 );
 
 #[cfg(test)]
-#[test]
-fn test_fsm_min2() {
+#[tokio::test]
+async fn test_fsm_min2() {
     let mut fsm = FsmMinTwo::new(());
-    fsm.start();
+    fsm.start().await;
     assert_eq!(FsmMinTwoStates::StateA, fsm.get_current_state());
 
-    fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).unwrap();
-    assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state());    
+    fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).await.unwrap();
+    assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state());
 }
 ```

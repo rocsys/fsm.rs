@@ -1,10 +1,10 @@
 extern crate quote;
 extern crate syn;
 
-use fsm_def::*;
+use crate::fsm_def::*;
 
 #[cfg(not(feature = "viz"))]
-pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
+pub fn build_viz(_: &FsmDescription) -> quote::Tokens {
     quote! {}
 }
 
@@ -17,14 +17,14 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
     let mut subs = quote::Tokens::new();
 
     let mut out = String::new();
-    writeln!(out, "var f = newFsm(cy, '{}', '##parent##'); var fsm_{} = f;", fsm.name, fsm.name);
+    writeln!(out, "var f = newFsm(cy, '{}', '##parent##'); var fsm_{} = f;", fsm.name, fsm.name).unwrap();
 
     for region in &fsm.regions {
         let var_region = format!("{}_region_{}", fsm.name, region.id);
-        writeln!(out, r#"var {} = f.add_region("Region {}");"#, var_region, region.id);
+        writeln!(out, r#"var {} = f.add_region("Region {}");"#, var_region, region.id).unwrap();
 
         let initial_name = ty_to_string(&region.initial_state_ty);
-        writeln!(out, r#"var state_{} = {}.add_initial_state("{}");"#, initial_name, var_region, initial_name);
+        writeln!(out, r#"var state_{} = {}.add_initial_state("{}");"#, initial_name, var_region, initial_name).unwrap();
         for state in &region.get_all_internal_states() {
             if state == &region.initial_state_ty {
                 continue;
@@ -36,17 +36,17 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
             let info = format!(r#"{{ is_initial_state: {:?}, is_interrupt_state: {:?} }}"#, is_initial_state, is_interrupt_state);
 
             let name = ty_to_string(state);
-            writeln!(out, r#"var state_{} = {}.add_state("{}", {});"#, name, var_region, name, info);
+            writeln!(out, r#"var state_{} = {}.add_state("{}", {});"#, name, var_region, name, info).unwrap();
         }
 
         for sub in region.get_all_states().iter().filter(|ref x| fsm.is_submachine(x)) {
             let s = ty_to_string(&sub);
 
             // submachines
-            writeln!(out, "// submachine {} start", s);
-            writeln!(out, "// ##SUB_{}##", s);
-            writeln!(out, "// submachine {} end", s);
-            
+            writeln!(out, "// submachine {} start", s).unwrap();
+            writeln!(out, "// ##SUB_{}##", s).unwrap();
+            writeln!(out, "// submachine {} end", s).unwrap();
+
             {
                 let a = format!("// ##SUB_{}##", s);
                 let p = format!("fsm_{}", fsm.name);
@@ -62,10 +62,10 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
             let ev = ty_to_string(&transition.event);
             let ac = ty_to_string(&transition.action);
 
-            
+
             let is_shallow_history = fsm.shallow_history_events.iter().find(|ref x| &x.event_ty == &transition.event && &x.target_state_ty == &transition.target_state).is_some();
             let is_resume_event = region.interrupt_states.iter().any(|x| &x.interrupt_state_ty == &transition.source_state && x.resume_event_ty.iter().any(|y| y == &transition.event));
-            let is_internal = transition.transition_type == TransitionType::Internal;
+            // let is_internal = transition.transition_type == TransitionType::Internal;
             let is_anonymous = transition.is_anonymous_transition();
 
             let guard_json = match transition.guard {
@@ -81,11 +81,11 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
                 if fsm.is_submachine(&transition.source_state) {
                     (format!("fsm_{}", s_from), format!("state_{}", s_to))
                 } else if fsm.is_submachine(&transition.target_state) {
-                    
+
                     if is_shallow_history {
                         (format!("state_{}", s_from), format!("fsm_{}", s_to))
                     } else {
-                        writeln!(out, r#"fsm_{}.add_transition_to_start({}, {});"#, s_to, format!("state_{}", s_from), data);
+                        writeln!(out, r#"fsm_{}.add_transition_to_start({}, {});"#, s_to, format!("state_{}", s_from), data).unwrap();
                         continue;
                     }
                 } else {
@@ -93,14 +93,14 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
                 }
             };
 
-            writeln!(out, r#"{}.add_transition({}, {}, {});"#, var_region, from, to, data);
+            writeln!(out, r#"{}.add_transition({}, {}, {});"#, var_region, from, to, data).unwrap();
         }
     }
 
-    
+
 
     quote! {
-        fn viz_cytoscape_fsm(parent: &str) -> String {            
+        fn viz_cytoscape_fsm(parent: &str) -> String {
             let t = (#out).replace("##parent##", parent);
             #subs
             t
@@ -117,14 +117,14 @@ pub fn build_viz(fsm: &FsmDescription) -> quote::Tokens {
 }
 
 #[cfg(not(feature = "viz"))]
-pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
+pub fn build_test_viz_build(_: &FsmDescription) -> quote::Tokens {
     quote! { }
 }
 
 #[cfg(feature = "viz")]
 pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
     let fn_name = fsm.get_build_viz_fn();
-    let fn_name_docs = fsm.get_build_viz_docs_fn();    
+    let fn_name_docs = fsm.get_build_viz_docs_fn();
     let ty = fsm.get_fsm_ty_inline();
     let ref ty_str = fsm.name;
 
@@ -133,9 +133,9 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
 
 
     let output_file = quote! {
-        let f: String = {                
+        let f: String = {
             let f: Vec<_> = file!().split('.').collect();
-            
+
             if let Some(i) = f.iter().rposition(|&x| x == "rs") {
                 let l: String = f[i-1].to_string();
                 let s: Vec<_> = l.split(|c| c == '/' || c == '\\' || c == ':').collect();
@@ -178,7 +178,7 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
                 {
                     let d = #fs_html.replace("##VIZ_JS_FSM##", &output_js);
                     let output_html = format!("{}fsm_viz_{}.html", dir, #ty_str);
-                    
+
                     let mut f = fs::File::create(&output_html).unwrap();
                     f.write_all(d.as_bytes()).unwrap();
                 }
@@ -188,13 +188,13 @@ pub fn build_test_viz_build(fsm: &FsmDescription) -> quote::Tokens {
             }
         }
     };
-    
+
 
     quote! {
         #[test]
         #[cfg(test)]
         fn #fn_name () {
-            
+
             #output_file
             let output_file = format!("{}_{}.html", f, #ty_str);
 

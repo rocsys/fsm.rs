@@ -1,8 +1,8 @@
 extern crate quote;
 extern crate syn;
 
-use fsm_def::*;
-use graph::*;
+use crate::fsm_def::*;
+use crate::graph::*;
 
 fn match_type_grab_param_data(path: &syn::Path) -> Result<syn::AngleBracketedParameterData , ()> {
     if path.segments.len() == 1 {
@@ -115,7 +115,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                         continue;
                     }
                 } else if let Ok(g) = match_type_grab_generics(&p, "ContextType") {
-                
+
                     if let Some(t) = g.get(0) {
                         context_ty = t.clone();
 
@@ -126,12 +126,12 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                                 }
                             }
                         }
-                        
+
                         continue;
                     }
 
-                } else if let Ok(g) = match_type_grab_generics(&p, "CopyableEvents") {
-                    copyable_events = true;             
+                } else if let Ok(_) = match_type_grab_generics(&p, "CopyableEvents") {
+                    copyable_events = true;
                 } else if let Ok(g) = match_type_grab_generics(&p, "InspectionType") {
                     if let Some(t) = g.get(1) {
                         inspect_ty = Some(t.clone());
@@ -152,7 +152,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                         f.resume_event_ty.push(ev.clone());
                         created = true;
                     }
-                    
+
                     if !created {
                         interrupt_states.push(FsmInterruptState {
                             interrupt_state_ty: st,
@@ -174,7 +174,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                     transitions.extend_from_slice(&transition_from_ty(&g, TransitionType::Normal));
                 } else if let Ok(g) = match_type_grab_generics(&p, "TransitionGuard") {
                     transitions.extend_from_slice(&transition_from_ty(&g, TransitionType::Normal));
-                
+
                 } else if let Ok(g) = match_type_grab_generics(&p, "TransitionSelf") {
                     transitions.extend_from_slice(&transition_from_ty(&g, TransitionType::SelfTransition));
                 } else if let Ok(g) = match_type_grab_generics(&p, "TransitionSelfGuard") {
@@ -194,7 +194,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                 panic!("nop!");
             }
         }
-        
+
     }
 
     let regions = create_regions(&transitions,
@@ -211,7 +211,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
 
         submachines: submachines,
         shallow_history_events: shallow_history_events,
-        
+
         context_ty: context_ty,
         inspect_ty: inspect_ty,
         regions: regions,
