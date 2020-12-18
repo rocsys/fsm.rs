@@ -1,6 +1,9 @@
 use crate::prelude::v1::*;
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FsmError {
@@ -23,13 +26,13 @@ pub trait FsmEvents<F: Fsm>: Send + Sync {
 
 #[async_trait]
 pub trait FsmState<F: Fsm> {
-	async fn on_entry(&mut self, _event_context: &mut EventContext<'_, F>) { }
-	async fn on_exit(&mut self, _event_context: &mut EventContext<'_, F>) { }
+	async fn on_entry(&self, _event_context: &EventContext<'_, F>) { }
+	async fn on_exit(&self, _event_context: &EventContext<'_, F>) { }
 }
 
 #[async_trait]
 pub trait FsmInspect<F: Fsm> {
-	fn new_from_context(context: &F::C) -> Self;
+	fn new_from_context(context: &FsmArc<F::C>) -> Self;
 
 	async fn on_state_entry(&self, _state: &F::S, _event_context: &EventContext<'_, F>) { }
 	async fn on_state_exit(&self, _state: &F::S, _event_context: &EventContext<'_, F>) { }
@@ -44,7 +47,7 @@ pub struct FsmInspectNull<F: Fsm> {
 }
 
 impl<F: Fsm> FsmInspect<F> for FsmInspectNull<F> {
-	fn new_from_context(_context: &F::C) -> Self {
+	fn new_from_context(_context: &FsmArc<F::C>) -> Self {
 		FsmInspectNull {
 			_fsm_ty: PhantomData
 		}
@@ -96,11 +99,11 @@ pub trait FsmStateSubMachineTransition<F: Fsm> {
 
 
 pub trait FsmStateFactory<Context> {
-	fn new_state(parent_context: &Context) -> Self;
+	fn new_state(parent_context: &FsmArc<Context>) -> Self;
 }
 
 impl<S: Default, Context> FsmStateFactory<Context> for S {
-	fn new_state(_parent_context: &Context) -> Self {
+	fn new_state(_parent_context: &FsmArc<Context>) -> Self {
 		Default::default()
 	}
 }
@@ -118,12 +121,14 @@ impl<F: Fsm> FsmGuard<F> for NoGuard {
 }
 
 
+#[async_trait]
 pub trait FsmAction<F: Fsm, S, T> {
-	fn action(event_context: &mut EventContext<F>, source_state: &mut S, target_state: &mut T);
+	async fn action(event_context: &EventContext<'_, F>, source_state: &S, target_state: &T);
 }
 
+#[async_trait]
 pub trait FsmActionSelf<F: Fsm, S> {
-	fn action(event_context: &mut EventContext<F>, state: &mut S);
+	async fn action(event_context: &EventContext<'_, F>, state: &S);
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -131,20 +136,22 @@ pub struct NoEvent;
 impl FsmEvent for NoEvent { }
 
 pub struct NoAction;
-impl<F: Fsm, S, T> FsmAction<F, S, T> for NoAction {
+#[async_trait]
+impl<F: Fsm, S: Send + Sync, T: Send + Sync> FsmAction<F, S, T> for NoAction {
 	#[inline]
-	fn action(_event_context: &mut EventContext<F>, _source_state: &mut S, _target_state: &mut T) { }
+	async fn action(_event_context: &EventContext<'_, F>, _source_state: &S, _target_state: &T) { }
 }
-impl<F: Fsm, S> FsmActionSelf<F, S> for NoAction {
+#[async_trait]
+impl<F: Fsm, S: Send + Sync> FsmActionSelf<F, S> for NoAction {
 	#[inline]
-	fn action(_event_context: &mut EventContext<F>, _state: &mut S) { }
+	async fn action(_event_context: &EventContext<'_, F>, _state: &S) { }
 }
 
 
 pub struct EventContext<'a, F: Fsm + 'a> {
 	pub event: &'a F::E,
-	pub queue: &'a mut dyn FsmEventQueue<F>,
-	pub context: &'a mut F::C,
+	pub queue: FsmArc<dyn FsmEventQueue<F>>,
+	pub context: FsmArc<F::C>,
 	pub current_state: F::CS,
 	//pub states: &'a mut F::SS
 }
@@ -192,6 +199,13 @@ impl<F: Fsm> FsmEventQueue<F> for FsmEventQueueVec<F> {
 	}
 }
 
+pub type FsmArc<T> = Arc<RwLock<T>>;
+
+pub async fn fsm_read_state<S: Copy>(state: &FsmArc<S>) -> S {
+	let state = state.read().await;
+	*state
+}
+
 #[async_trait]
 pub trait Fsm where Self: Sized {
 	type E: FsmEvents<Self>;
@@ -200,22 +214,21 @@ pub trait Fsm where Self: Sized {
 	type CS: Debug + Send + Sync;
 	type SS: Send + Sync;
 
-	fn new(context: Self::C) -> Self;
+	fn new(context: &FsmArc<Self::C>) -> Self;
 
-	async fn start(&mut self);
-	async fn stop(&mut self);
+	async fn start(&self);
+	async fn stop(&self);
 
-	async fn call_on_entry(&mut self, state: Self::S);
-	async fn call_on_exit(&mut self, state: Self::S);
+	async fn call_on_entry(&self, state: Self::S);
+	async fn call_on_exit(&self, state: Self::S);
 
-	fn get_queue(&self) -> &dyn FsmEventQueue<Self>;
-	fn get_queue_mut(&mut self) -> &mut dyn FsmEventQueue<Self>;
+	fn get_queue(&self) -> &FsmArc<dyn FsmEventQueue<Self>>;
 
-	fn get_current_state(&self) -> Self::CS;
+	async fn get_current_state(&self) -> Self::CS;
+
 	fn get_states(&self) -> &Self::SS;
-	fn get_states_mut(&mut self) -> &mut Self::SS;
 
-	async fn process_anonymous_transitions(&mut self) -> Result<(), FsmError> {
+	async fn process_anonymous_transitions(&self) -> Result<(), FsmError> {
 		loop {
 			match self.process_event(Self::E::new_no_event()).await {
 				Ok(_) => { continue; }
@@ -228,10 +241,13 @@ pub trait Fsm where Self: Sized {
 		Ok(())
 	}
 
-	async fn process_event(&mut self, event: Self::E) -> Result<(), FsmError>;
+	async fn process_event(&self, event: Self::E) -> Result<(), FsmError>;
 
-	async fn execute_queued_events(&mut self) -> FsmQueueStatus {
-		if self.get_queue().len() == 0 { return FsmQueueStatus::Empty; }
+	async fn execute_queued_events(&self) -> FsmQueueStatus {
+		{
+			let queue = self.get_queue();
+			if queue.read().await.len() == 0 { return FsmQueueStatus::Empty; }
+		}
 
 		loop {
 			let l = self.execute_single_queued_event().await;
@@ -241,16 +257,29 @@ pub trait Fsm where Self: Sized {
 		FsmQueueStatus::Empty
 	}
 
-	async fn execute_single_queued_event(&mut self) -> FsmQueueStatus {
-		if let Some(ev) = self.get_queue_mut().dequeue_event() {
-			self.process_event(ev).await.unwrap(); // should this somehow bubble?
+	async fn execute_single_queued_event(&self) -> FsmQueueStatus {
+		{
+			let ev;
+
+			{
+				let queue = self.get_queue();
+				let mut queue = queue.write().await;
+				ev = queue.dequeue_event();
+			}
+
+			if let Some(e) = ev {
+				self.process_event(e).await.unwrap(); // should this somehow bubble?
+			}
 		}
 
-		if self.get_queue().len() == 0 { FsmQueueStatus::Empty } else { FsmQueueStatus::MoreEventsQueued }
+		{
+			let queue = self.get_queue();
+			if queue.read().await.len() == 0 { FsmQueueStatus::Empty } else { FsmQueueStatus::MoreEventsQueued }
+		}
 	}
 
-	fn get_message_queue_size(&self) -> usize {
-		self.get_queue().len()
+	async fn get_message_queue_size(&self) -> usize {
+		self.get_queue().read().await.len()
 	}
 }
 
