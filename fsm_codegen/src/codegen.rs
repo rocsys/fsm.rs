@@ -166,11 +166,11 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
                 let action_call = if transition.has_same_states() {
                     quote! {
-                        <#action as FsmActionSelf<#fsm_ty, #state>>::action(&event_ctx, &self.states.#source_state_field);
+                        <#action as FsmActionSelf<#fsm_ty, #state>>::action(&event_ctx, &self.states.#source_state_field).await;
                     }
                 } else {
                     quote! {
-                        <#action as FsmAction<#fsm_ty, #state, #target_state>>::action(&event_ctx, &self.states.#source_state_field, &self.states.#target_state_field);
+                        <#action as FsmAction<#fsm_ty, #state, #target_state>>::action(&event_ctx, &self.states.#source_state_field, &self.states.#target_state_field).await;
                     }
                 };
 
