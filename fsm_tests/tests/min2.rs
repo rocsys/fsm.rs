@@ -61,10 +61,10 @@ struct FsmMinTwoDefinition(
 #[cfg(test)]
 #[tokio::test]
 async fn test_fsm_min2() {
-    let mut fsm = FsmMinTwo::new(());
+    let fsm = FsmMinTwo::new(&Default::default());
     fsm.start().await;
-    assert_eq!(FsmMinTwoStates::StateA, fsm.get_current_state());
+    assert_eq!(FsmMinTwoStates::StateA, fsm.get_current_state().await);
 
     fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).await.unwrap();
-    assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state());
+    assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state().await);
 }
