@@ -176,15 +176,12 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
                 let mut sub_init = quote! { };
                 if fsm.is_submachine(&target_state) {
-                    let f = FsmDescription::to_state_sub_started_field_name(&target_state);
-
                     let is_shallow = fsm.shallow_history_events.iter().find(|ref x| &x.event_ty == event && &x.target_state_ty == target_state).is_some();
 
                     if is_shallow == false {
                         sub_init = quote! {
                             {
                                 self.states.#target_state_field.start().await;
-                                // self.states.#f = true;
                                 just_called_start = true;
                             }
                         };
