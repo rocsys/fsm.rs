@@ -245,29 +245,28 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
                 let s = quote! {
                     (#states_ty::#state, &#events_ty::#event(_)) #guard => {
-
-                        #state_exit
                         #sub_state_exit
+                        #state_exit
 
                         self.inspection.on_action(&current_state, &event_ctx).await;
                         #action_call
-
-
-                        let mut just_called_start = false;
-                        #sub_init
-
-                        #state_entry
-                        if just_called_start == false {
-                            #sub_state_entry
-                        }
-
-                        self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx).await;
 
                         {
                             let mut state_ = #state_set.write().await;
                             *state_ = #states_ty::#target_state;
                         }
 
+                        event_ctx.current_state = self.get_current_state().await;
+
+                        #state_entry
+
+                        let mut just_called_start = false;
+                        #sub_init
+                        if just_called_start == false {
+                            #sub_state_entry
+                        }
+
+                        self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx).await;
 
                         Ok(())
                     },
@@ -597,7 +596,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                     queue: std::sync::Arc::new(tokio::sync::RwLock::new(FsmEventQueueVec::new())),
 
                     execute_queue_pre: true,
-                    execute_queue_post: false
+                    execute_queue_post: true
                 }
             }
 
