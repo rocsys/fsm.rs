@@ -24,7 +24,7 @@ struct FsmMinOneDefinition(
 #[cfg(test)]
 #[tokio::test]
 async fn test_fsm_min1() {
-    let mut fsm = FsmMinOne::new(());
+    let fsm = FsmMinOne::new(&Default::default());
     fsm.start().await;
-    assert_eq!(FsmMinOneStates::StaticA, fsm.get_current_state());
+    assert_eq!(FsmMinOneStates::StaticA, fsm.get_current_state().await);
 }

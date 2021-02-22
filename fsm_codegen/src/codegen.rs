@@ -57,7 +57,7 @@ pub fn build_state_store(fsm: &FsmDescription) -> quote::Tokens {
         }
 
         impl #states_store_ty {
-            pub fn new<'a>(context: &#context_ty) -> #states_store_ty {
+            pub fn new<'a>(context: &FsmArc<#context_ty>) -> #states_store_ty {
                 #states_store_ty {
                     #n
                 }
@@ -166,25 +166,22 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
                 let action_call = if transition.has_same_states() {
                     quote! {
-                        <#action as FsmActionSelf<#fsm_ty, #state>>::action(&mut event_ctx, &mut self.states.#source_state_field);
+                        <#action as FsmActionSelf<#fsm_ty, #state>>::action(&event_ctx, &self.states.#source_state_field).await;
                     }
                 } else {
                     quote! {
-                        <#action as FsmAction<#fsm_ty, #state, #target_state>>::action(&mut event_ctx, &mut self.states.#source_state_field, &mut self.states.#target_state_field);
+                        <#action as FsmAction<#fsm_ty, #state, #target_state>>::action(&event_ctx, &self.states.#source_state_field, &self.states.#target_state_field).await;
                     }
                 };
 
                 let mut sub_init = quote! { };
                 if fsm.is_submachine(&target_state) {
-                    let f = FsmDescription::to_state_sub_started_field_name(&target_state);
-
                     let is_shallow = fsm.shallow_history_events.iter().find(|ref x| &x.event_ty == event && &x.target_state_ty == target_state).is_some();
 
                     if is_shallow == false {
                         sub_init = quote! {
                             {
                                 self.states.#target_state_field.start().await;
-                                self.states.#f = true;
                                 just_called_start = true;
                             }
                         };
@@ -197,7 +194,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                 if fsm.is_submachine(&state) {
                     sub_state_exit = quote! {
                         {
-                            let s = self.states.#source_state_field.get_current_state();
+                            let s = self.states.#source_state_field.get_current_state().await;
                             self.states.#source_state_field.call_on_exit(s).await;
                         }
                     };
@@ -207,7 +204,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                 if fsm.is_submachine(&target_state) {
                     sub_state_entry = quote! {
                         {
-                            let s = self.states.#target_state_field.get_current_state();
+                            let s = self.states.#target_state_field.get_current_state().await;
                             self.states.#target_state_field.call_on_entry(s).await;
                         }
                     };
@@ -248,25 +245,28 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
                 let s = quote! {
                     (#states_ty::#state, &#events_ty::#event(_)) #guard => {
-
-                        #state_exit
                         #sub_state_exit
+                        #state_exit
 
                         self.inspection.on_action(&current_state, &event_ctx).await;
                         #action_call
 
+                        {
+                            let mut state_ = #state_set.write().await;
+                            *state_ = #states_ty::#target_state;
+                        }
+
+                        event_ctx.current_state = self.get_current_state().await;
+
+                        #state_entry
 
                         let mut just_called_start = false;
                         #sub_init
-
-                        #state_entry
                         if just_called_start == false {
                             #sub_state_entry
                         }
 
                         self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx).await;
-                        #state_set = #states_ty::#target_state;
-
 
                         Ok(())
                     },
@@ -291,7 +291,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
         event_dispatch.append(quote! {
 
-            let current_state = #region_state_field;
+            let current_state = fsm_read_state(&#region_state_field).await;
             let #result = match (current_state, &event) {
                 #q
                 (_, _) => Err(FsmError::NoTransition)
@@ -313,7 +313,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
             }
 
             interrupted_states.append(quote! {
-                match (#region_state_field, &event) {
+                match (fsm_read_state(&#region_state_field).await, &event) {
                     #m
                     (#states_ty::#s_ty, _) => {
                         is_interrupted = true;
@@ -342,7 +342,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
 
             return_result.append(quote! {
                 if #r == Err(FsmError::NoTransition) {
-                    self.inspection.on_no_transition(&#q, &event_ctx).await;
+                    self.inspection.on_no_transition(&fsm_read_state(&#q).await, &event_ctx).await;
                 }
                 if res.is_none() && #r.is_ok() {
                     res = Some(#r);
@@ -359,13 +359,13 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
     } else {
         return_result = quote! {
             if res == Err(FsmError::NoTransition) {
-                self.inspection.on_no_transition(&self.state, &event_ctx).await;
+                self.inspection.on_no_transition(&fsm_read_state(&self.state).await, &event_ctx).await;
             }
         }
     }
 
     let f = quote! {
-        async fn process_event(&mut self, event: #events_ty) -> Result<(), FsmError> {
+        async fn process_event(&self, event: #events_ty) -> Result<(), FsmError> {
             if self.execute_queue_pre {
                 self.execute_queued_events().await;
             }
@@ -373,9 +373,9 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
             let res = {
                 let mut event_ctx = EventContext {
                     event: &event,
-                    queue: &mut self.queue,
-                    context: &mut self.context,
-                    current_state: self.state
+                    queue: std::sync::Arc::clone(&self.queue),
+                    context: std::sync::Arc::clone(&self.context),
+                    current_state: self.get_current_state().await
                 };
 
                 {
@@ -421,7 +421,11 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     let transitions = build_state_transitions(fsm);
 
     let mut start = quote! {
-        self.state = Self::new_initial_state();
+        {
+            let mut state = self.state.write().await;
+            *state = Self::new_initial_state();
+        }
+
         let no = <Self::E as FsmEvents<Self>>::new_no_event();
     };
 
@@ -431,13 +435,15 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
 
         start.append(quote! {
             {
-                let mut event_ctx = EventContext {
+                let event_ctx = EventContext {
                     event: &no,
-                    queue: &mut self.queue,
-                    context: &mut self.context,
-                    current_state: self.state
+                    queue: std::sync::Arc::clone(&self.queue),
+                    context: std::sync::Arc::clone(&self.context),
+                    current_state: self.get_current_state().await
                 };
-                self.states.#initial_state_field.on_entry(&mut event_ctx).await;
+
+                self.inspection.on_state_entry(&#states_ty::#initial_state, &event_ctx).await;
+                self.states.#initial_state_field.on_entry(&event_ctx).await;
             }
         }.as_str());
     }
@@ -457,7 +463,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     let mut stop = quote! {};
     if fsm.has_multiple_regions() {
         stop.append(quote!{
-            let s = self.get_current_state();
+            let s = self.get_current_state().await;
         }.as_str());
         for region in &fsm.regions {
             let mut q = Tokens::new();
@@ -469,7 +475,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     } else {
         stop = quote! {
             {
-                let s = self.get_current_state();
+                let s = self.get_current_state().await;
                 self.call_on_exit(s).await;
             }
         };
@@ -563,10 +569,10 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
     quote! {
         #main_struct_docs
         pub struct #fsm_ty {
-	        state: #current_state_ty,
+	        state: FsmArc<#current_state_ty>,
             states: #states_store_ty,
-	        context: #ctx,
-            queue: FsmEventQueueVec<#fsm_ty>,
+	        context: FsmArc<#ctx>,
+            queue: FsmArc<dyn FsmEventQueue<#fsm_ty>>,
             inspection: #inspection_ty,
 
             pub execute_queue_pre: bool,
@@ -581,45 +587,37 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             type C = #ctx;
             type CS = #current_state_ty;
 
-            fn new(context: Self::C) -> Self {
+            fn new(context: &FsmArc<Self::C>) -> Self {
                 #fsm_ty_inline {
-                    state: Self::new_initial_state(),
+                    state: std::sync::Arc::new(tokio::sync::RwLock::new(Self::new_initial_state())),
                     states: #states_store_ty::new(&context),
                     inspection: <#inspection_ty>::new_from_context(&context),
-                    context: context,
-                    queue: FsmEventQueueVec::new(),
+                    context: std::sync::Arc::clone(context),
+                    queue: std::sync::Arc::new(tokio::sync::RwLock::new(FsmEventQueueVec::new())),
 
                     execute_queue_pre: true,
-                    execute_queue_post: false
+                    execute_queue_post: true
                 }
             }
 
-            async fn start(&mut self) {
+            async fn start(&self) {
                 #start
             }
 
-	        async fn stop(&mut self) {
+	        async fn stop(&self) {
                 #stop
             }
 
-            fn get_queue(&self) -> &FsmEventQueue<Self> {
+            fn get_queue(&self) -> &FsmArc<dyn FsmEventQueue<Self>> {
                 &self.queue
             }
 
-            fn get_queue_mut(&mut self) -> &mut FsmEventQueue<Self> {
-                &mut self.queue
-            }
-
-            fn get_current_state(&self) -> #current_state_ty {
-                self.state
+            async fn get_current_state(&self) -> #current_state_ty {
+                fsm_read_state(&self.state).await
             }
 
             fn get_states(&self) -> &#states_store_ty {
                 &self.states
-            }
-
-	        fn get_states_mut(&mut self) -> &mut #states_store_ty {
-                &mut self.states
             }
 
             #sub_on_handlers
@@ -631,11 +629,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 #initial_state
             }
 
-            pub fn get_context_mut(&mut self) -> &mut #ctx {
-                &mut self.context
-            }
-
-            pub fn get_context(&self) -> &#ctx {
+            pub fn get_context(&self) -> &FsmArc<#ctx> {
                 &self.context
             }
 
@@ -663,42 +657,44 @@ pub fn build_on_handlers(fsm: &FsmDescription) -> quote::Tokens {
 
         on_entry.append(quote!{
             #states_ty::#state => {
-                self.states.#f.on_entry(&mut event_ctx).await;
                 self.inspection.on_state_entry(&state, &event_ctx).await;
+                self.states.#f.on_entry(&event_ctx).await;
             },
         }.as_str());
 
         on_exit.append(quote!{
             #states_ty::#state => {
-                self.states.#f.on_exit(&mut event_ctx).await;
                 self.inspection.on_state_exit(&state, &event_ctx).await;
+                self.states.#f.on_exit(&event_ctx).await;
             },
         }.as_str());
     }
 
     quote! {
-        async fn call_on_entry(&mut self, state: #states_ty) {
+        async fn call_on_entry(&self, state: #states_ty) {
             let no = #events_ty::new_no_event();
-            let mut event_ctx = EventContext {
+            let event_ctx = EventContext {
                 event: &no,
-                queue: &mut self.queue,
-                context: &mut self.context,
-                current_state: self.state
+                queue: std::sync::Arc::clone(&self.queue),
+                context: std::sync::Arc::clone(&self.context),
+                current_state: self.get_current_state().await
             };
+
             match state {
                 #on_entry
                 _ => ()
             }
         }
 
-        async fn call_on_exit(&mut self, state: #states_ty) {
+        async fn call_on_exit(&self, state: #states_ty) {
             let no = #events_ty::new_no_event();
-            let mut event_ctx = EventContext {
+            let event_ctx = EventContext {
                 event: &no,
-                queue: &mut self.queue,
-                context: &mut self.context,
-                current_state: self.state
+                queue: std::sync::Arc::clone(&self.queue),
+                context: std::sync::Arc::clone(&self.context),
+                current_state: self.get_current_state().await
             };
+
             match state {
                 #on_exit
                 _ => ()
