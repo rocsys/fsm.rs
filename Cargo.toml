@@ -1,6 +1,6 @@
 [package]
 name = "fsm"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Rudi Benkovic <rudi.benkovic@gmail.com>", "Maher Sallam <msallam@rocsys.com>"]
 edition = "2018"
 
