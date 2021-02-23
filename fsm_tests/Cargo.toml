@@ -1,12 +1,12 @@
 [package]
 name = "fsm_tests"
-version = "0.2.0"
+version = "0.4.0"
 authors = ["Rudi Benkovic <rudi.benkovic@gmail.com>", "Maher Sallam <msallam@rocsys.com>"]
 edition = "2018"
 
 [dependencies]
 async-trait = "0.1.42"
-tokio = { version = "0.2.21", features = ["full"] }
+tokio = { version = "1.2.0", features = ["full"] }
 
-fsm = { path = "../" }
-fsm_codegen = { path = "../fsm_codegen/", default-features = false }
+fsm = { path = "../", version = "0.4.0" }
+fsm_codegen = { path = "../fsm_codegen/", version = "0.4.0", default-features = false }
