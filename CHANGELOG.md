@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2021-02-23
+
+### Added
+
+- Allow sending events from sub to super states through the `process_event` function.
+
+### Changed
+
+- All associated functions in Fsm traits have been made immutable (i.e., `&self` instead of `&mut self`).
+
 ## [0.2.0] - 2020-12-09
 
 ### Added
