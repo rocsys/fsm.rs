@@ -147,10 +147,10 @@ pub struct NoEvent;
 impl FsmEvent for NoEvent { }
 
 #[derive(Debug)]
-pub struct ErrorEvent {
+pub struct FsmErrorEvent {
 	pub error: FsmTransitionError
 }
-impl FsmEvent for ErrorEvent {}
+impl FsmEvent for FsmErrorEvent {}
 
 pub struct NoAction;
 #[async_trait]

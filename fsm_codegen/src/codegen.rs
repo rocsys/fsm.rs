@@ -87,7 +87,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
     for event in events {
         let mut t = quote::Tokens::new();
         event.to_tokens(&mut t);
-        if t.as_str() == "NoEvent" || t.as_str() == "ErrorEvent" { continue; }
+        if t.as_str() == "NoEvent" || t.as_str() == "FsmErrorEvent" { continue; }
 
         events_types.append(quote! { #event(#event), }.as_str());
         event_traits.append(quote! {
@@ -98,7 +98,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
             }
         }.as_str());
     }
-    events_types.append(quote! { ErrorEvent(ErrorEvent), }.as_str());
+    events_types.append(quote! { FsmErrorEvent(FsmErrorEvent), }.as_str());
     events_types.append(quote! { NoEvent(NoEvent) }.as_str());
 
     let mut derive_events = quote::Tokens::new();
@@ -126,7 +126,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
             }
 
             fn new_error_event(error: FsmTransitionError) -> Self {
-                #events_ty::ErrorEvent(ErrorEvent { error })
+                #events_ty::FsmErrorEvent(FsmErrorEvent { error })
             }
         }
         #event_traits

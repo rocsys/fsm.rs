@@ -94,7 +94,7 @@ pub fn create_regions(
         if let Some(error_state) = error_state {
             transitions.push(TransitionEntry {
                 source_state: initial_state.clone(),
-                event: syn::parse_type("ErrorEvent").unwrap(),
+                event: syn::parse_type("FsmErrorEvent").unwrap(),
                 target_state: error_state.clone(),
                 action: syn::parse_type("NoAction").unwrap(),
                 transition_type: TransitionType::Normal,
@@ -151,7 +151,7 @@ pub fn create_regions(
                 // Define transition from the state to the error state
                 region.transitions.push(TransitionEntry {
                     source_state: s.clone(),
-                    event: syn::parse_type("ErrorEvent").unwrap(),
+                    event: syn::parse_type("FsmErrorEvent").unwrap(),
                     target_state: error_state.clone(),
                     action: syn::parse_type("NoAction").unwrap(),
                     transition_type: TransitionType::Normal,
