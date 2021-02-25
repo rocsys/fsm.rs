@@ -13,11 +13,8 @@ pub enum FsmError {
 }
 
 #[derive(Error, Debug)]
-#[error("Transition error: {msg}")]
-pub struct FsmTransitionError {
-	pub msg: String,
-	pub source: anyhow::Error,
-}
+#[error(transparent)]
+pub struct FsmTransitionError(#[from] pub anyhow::Error);
 
 pub type FsmTransitionResult<T, E = FsmTransitionError> = std::result::Result<T, E>;
 

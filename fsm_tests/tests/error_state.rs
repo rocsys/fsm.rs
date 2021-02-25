@@ -44,10 +44,9 @@ struct Recovered;
 
 trait WithFailure {
   fn fail(&self) -> FsmTransitionResult<()> {
-    Err(FsmTransitionError {
-      msg: "error".to_owned(),
-      source: std::io::Error::last_os_error().into()
-    })
+    Err(FsmTransitionError(
+      std::io::Error::last_os_error().into()
+    ))
   }
 }
 
