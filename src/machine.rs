@@ -175,7 +175,7 @@ pub struct EventContext<'a, F: Fsm + 'a> {
 
 
 pub trait FsmEventQueue<F: Fsm>: Send + Sync {
-	fn enqueue_event(&mut self, event: F::E) -> Result<(), FsmError>;
+	fn enqueue_event(&mut self, event: F::E);
 	fn dequeue_event(&mut self) -> Option<F::E>;
 	fn len(&self) -> usize;
 }
@@ -198,9 +198,8 @@ impl<F: Fsm> FsmEventQueueVec<F> {
 }
 
 impl<F: Fsm> FsmEventQueue<F> for FsmEventQueueVec<F> {
-	fn enqueue_event(&mut self, event: F::E) -> Result<(), FsmError> {
+	fn enqueue_event(&mut self, event: F::E) {
 		self.queue.push(event);
-		Ok(())
 	}
 
 	fn dequeue_event(&mut self) -> Option<F::E> {
