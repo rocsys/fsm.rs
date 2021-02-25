@@ -173,6 +173,15 @@ pub struct EventContext<'a, F: Fsm + 'a> {
 	//pub states: &'a mut F::SS
 }
 
+impl<'a, F: Fsm + 'a> EventContext<'a, F> {
+	pub async fn enqueue_event(&self, event: F::E) {
+		self
+			.queue
+			.write()
+			.await
+			.enqueue_event(event);
+	}
+}
 
 pub trait FsmEventQueue<F: Fsm>: Send + Sync {
 	fn enqueue_event(&mut self, event: F::E);
