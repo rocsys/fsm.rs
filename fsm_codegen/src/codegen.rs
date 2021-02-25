@@ -480,6 +480,12 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
         let initial_state = &region.initial_state_ty;
         let initial_state_field = FsmDescription::to_state_field_name(initial_state);
 
+        let sub_start = if fsm.is_submachine(&initial_state) {
+            quote! { self.states.#initial_state_field.start(); }
+        } else {
+            quote! { }
+        };
+
         start.append(quote! {
             {
                 let event_ctx = EventContext {
@@ -494,6 +500,8 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
                 if let Err(error) = self.states.#initial_state_field.on_entry(&event_ctx).await {
                     #start_error_handling
                 }
+
+                #sub_start
             }
         }.as_str());
     }
