@@ -94,6 +94,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
 
 
     let mut initial_state_ty = None;
+    let mut error_state_ty = None;
     let mut copyable_events = false;
     let mut inspect_ty = None;
     let mut context_ty = syn::parse_type("()").unwrap();
@@ -114,7 +115,12 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
                         initial_state_ty = Some(t.clone());
                         continue;
                     }
-                } else if let Ok(g) = match_type_grab_generics(&p, "ContextType") {
+                } else if let Ok(g) = match_type_grab_generics(&p, "ErrorState") {
+                    if let Some(t) = g.get(1) {
+                        error_state_ty = Some(t.clone());
+                        continue;
+                    }
+                }else if let Ok(g) = match_type_grab_generics(&p, "ContextType") {
 
                     if let Some(t) = g.get(0) {
                         context_ty = t.clone();
@@ -199,6 +205,7 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
 
     let regions = create_regions(&transitions,
                                  &ty_to_vec(&initial_state_ty.expect("Missing Initial State")),
+                                 &error_state_ty,
                                  &submachines,
                                  &interrupt_states
                                 );
@@ -208,6 +215,8 @@ pub fn parse_description(ast: &syn::MacroInput) -> FsmDescription {
         name: fsm_name,
         name_ident: fsm_name_ident,
         lifetimes: lifetimes,
+
+        error_state_ty,
 
         submachines: submachines,
         shallow_history_events: shallow_history_events,

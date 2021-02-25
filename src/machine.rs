@@ -4,12 +4,22 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
+use thiserror::Error;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FsmError {
 	NoTransition,
 	Interrupted
 }
+
+#[derive(Error, Debug)]
+#[error("Transition error: {msg}")]
+pub struct FsmTransitionError {
+	pub msg: String,
+	pub source: anyhow::Error,
+}
+
+pub type FsmTransitionResult<T, E = FsmTransitionError> = std::result::Result<T, E>;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FsmQueueStatus {
@@ -22,12 +32,13 @@ pub trait FsmEvent {
 }
 pub trait FsmEvents<F: Fsm>: Send + Sync {
 	fn new_no_event() -> Self;
+	fn new_error_event(error: FsmTransitionError) -> Self;
 }
 
 #[async_trait]
 pub trait FsmState<F: Fsm> {
-	async fn on_entry(&self, _event_context: &EventContext<'_, F>) { }
-	async fn on_exit(&self, _event_context: &EventContext<'_, F>) { }
+	async fn on_entry(&self, _event_context: &EventContext<'_, F>) -> FsmTransitionResult<()> { Ok(()) }
+	async fn on_exit(&self, _event_context: &EventContext<'_, F>) -> FsmTransitionResult<()> { Ok(()) }
 }
 
 #[async_trait]
@@ -135,6 +146,12 @@ pub trait FsmActionSelf<F: Fsm, S> {
 pub struct NoEvent;
 impl FsmEvent for NoEvent { }
 
+#[derive(Debug)]
+pub struct ErrorEvent {
+	pub error: FsmTransitionError
+}
+impl FsmEvent for ErrorEvent {}
+
 pub struct NoAction;
 #[async_trait]
 impl<F: Fsm, S: Send + Sync, T: Send + Sync> FsmAction<F, S, T> for NoAction {
@@ -219,8 +236,8 @@ pub trait Fsm where Self: Sized {
 	async fn start(&self);
 	async fn stop(&self);
 
-	async fn call_on_entry(&self, state: Self::S);
-	async fn call_on_exit(&self, state: Self::S);
+	async fn call_on_entry(&self, state: Self::S) -> FsmTransitionResult<()>;
+	async fn call_on_exit(&self, state: Self::S) -> FsmTransitionResult<()>;
 
 	fn get_queue(&self) -> &FsmArc<dyn FsmEventQueue<Self>>;
 
@@ -287,6 +304,7 @@ pub trait Fsm where Self: Sized {
 // codegen types
 
 pub struct InitialState<F: Fsm, S: FsmState<F>>(PhantomData<F>, S);
+pub struct ErrorState<F: Fsm, S: FsmState<F>>(PhantomData<F>, S);
 pub struct ContextType<T>(T);
 pub struct InspectionType<F: Fsm, T: FsmInspect<F>>(PhantomData<F>, T);
 pub struct SubMachine<F: Fsm>(F);

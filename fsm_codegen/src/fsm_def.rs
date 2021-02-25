@@ -11,6 +11,8 @@ pub struct FsmDescription {
     pub name_ident: syn::Ident,
     pub lifetimes: Vec<syn::Lifetime>,
 
+    pub error_state_ty: Option<syn::Ty>,
+
     pub submachines: Vec<syn::Ty>,
     pub shallow_history_events: Vec<ShallowHistoryEvent>,
 
@@ -147,6 +149,10 @@ impl FsmDescription {
             self.get_fsm_ty().to_tokens(&mut t);
             syn::parse_type(&format!("FsmInspectNull<{}>", t.as_str())).unwrap()
         }
+    }
+
+    pub fn get_error_state_ty(&self) -> Option<syn::Ty> {
+        self.error_state_ty.clone()
     }
 
     #[allow(dead_code)]
