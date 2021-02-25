@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2021-02-25
+
+### Added
+
+- The ability to define an error state for machines with the `ErrorState` macro.
+
+### Fixed
+
+- The `start` function of submachines weren't being called when they are used as the initial state of their parent.
+
 ## [0.4.0] - 2021-02-23
 
 ### Changed
