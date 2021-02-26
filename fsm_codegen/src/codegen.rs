@@ -161,7 +161,7 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
             }
          }
     } else {
-        quote! { }
+        quote! { result.unwrap(); }
     };
 
     for region in &fsm.regions {
@@ -473,7 +473,7 @@ pub fn build_main_struct(fsm: &FsmDescription) -> quote::Tokens {
             event = <Self::E as FsmEvents<Self>>::new_error_event(error);
          }
     } else {
-        quote! { }
+        quote! { panic!("The on_entry action of the initial state returned an error: {:?}", error); }
     };
 
     for region in &fsm.regions {
