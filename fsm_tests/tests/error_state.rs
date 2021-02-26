@@ -3,6 +3,8 @@ extern crate fsm;
 #[macro_use]
 extern crate fsm_codegen;
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 
 use fsm::*;
@@ -45,7 +47,7 @@ struct Recovered;
 trait WithFailure {
   fn fail(&self) -> FsmTransitionResult<()> {
     Err(FsmTransitionError(
-      std::io::Error::last_os_error().into()
+      Arc::new(std::io::Error::last_os_error().into())
     ))
   }
 }

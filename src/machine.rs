@@ -1,6 +1,10 @@
 use crate::prelude::v1::*;
 
-use std::sync::Arc;
+use std::{
+	fmt,
+	sync::Arc,
+	error::Error
+};
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
@@ -12,9 +16,23 @@ pub enum FsmError {
 	Interrupted
 }
 
-#[derive(Error, Debug)]
+impl fmt::Display for FsmError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{:?}", self)
+	}
+}
+
+impl Error for FsmError {}
+
+#[derive(Error, Clone, Debug)]
 #[error(transparent)]
-pub struct FsmTransitionError(#[from] pub anyhow::Error);
+pub struct FsmTransitionError(#[from] pub Arc<anyhow::Error>);
+
+impl From<FsmError> for FsmTransitionError {
+	fn from(err: FsmError) -> Self {
+		FsmTransitionError(Arc::new(err.into()))
+	}
+}
 
 pub type FsmTransitionResult<T, E = FsmTransitionError> = std::result::Result<T, E>;
 
@@ -143,7 +161,7 @@ pub trait FsmActionSelf<F: Fsm, S> {
 pub struct NoEvent;
 impl FsmEvent for NoEvent { }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FsmErrorEvent(pub FsmTransitionError);
 impl FsmEvent for FsmErrorEvent {}
 
