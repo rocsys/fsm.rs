@@ -144,9 +144,7 @@ pub struct NoEvent;
 impl FsmEvent for NoEvent { }
 
 #[derive(Debug)]
-pub struct FsmErrorEvent {
-	pub error: FsmTransitionError
-}
+pub struct FsmErrorEvent(pub FsmTransitionError);
 impl FsmEvent for FsmErrorEvent {}
 
 pub struct NoAction;

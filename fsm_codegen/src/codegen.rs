@@ -126,7 +126,7 @@ pub fn build_enums(fsm: &FsmDescription) -> quote::Tokens {
             }
 
             fn new_error_event(error: FsmTransitionError) -> Self {
-                #events_ty::FsmErrorEvent(FsmErrorEvent { error })
+                #events_ty::FsmErrorEvent(FsmErrorEvent(error))
             }
         }
         #event_traits
