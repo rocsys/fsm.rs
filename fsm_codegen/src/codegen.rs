@@ -278,6 +278,8 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                 let s = quote! {
                     (#states_ty::#state, &#events_ty::#event(_)) #guard => {
                         let result: FsmTransitionResult<()> = loop {
+                            self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx).await;
+
                             #sub_state_exit
                             #state_exit
 
@@ -298,8 +300,6 @@ pub fn build_state_transitions(fsm: &FsmDescription) -> quote::Tokens {
                             if just_called_start == false {
                                 #sub_state_entry
                             }
-
-                            self.inspection.on_transition(&current_state, &#states_ty::#target_state, &event_ctx).await;
 
                             break Ok(())
                         };
