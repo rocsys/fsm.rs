@@ -1,15 +1,40 @@
 use crate::prelude::v1::*;
 
-use std::sync::Arc;
+use std::{
+	fmt,
+	sync::Arc,
+	error::Error
+};
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
+use thiserror::Error;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FsmError {
 	NoTransition,
 	Interrupted
 }
+
+impl fmt::Display for FsmError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{:?}", self)
+	}
+}
+
+impl Error for FsmError {}
+
+#[derive(Error, Clone, Debug)]
+#[error(transparent)]
+pub struct FsmTransitionError(#[from] pub Arc<anyhow::Error>);
+
+impl From<FsmError> for FsmTransitionError {
+	fn from(err: FsmError) -> Self {
+		FsmTransitionError(Arc::new(err.into()))
+	}
+}
+
+pub type FsmTransitionResult<T, E = FsmTransitionError> = std::result::Result<T, E>;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum FsmQueueStatus {
@@ -22,12 +47,13 @@ pub trait FsmEvent {
 }
 pub trait FsmEvents<F: Fsm>: Send + Sync {
 	fn new_no_event() -> Self;
+	fn new_error_event(error: FsmTransitionError) -> Self;
 }
 
 #[async_trait]
 pub trait FsmState<F: Fsm> {
-	async fn on_entry(&self, _event_context: &EventContext<'_, F>) { }
-	async fn on_exit(&self, _event_context: &EventContext<'_, F>) { }
+	async fn on_entry(&self, _event_context: &EventContext<'_, F>) -> FsmTransitionResult<()> { Ok(()) }
+	async fn on_exit(&self, _event_context: &EventContext<'_, F>) -> FsmTransitionResult<()> { Ok(()) }
 }
 
 #[async_trait]
@@ -135,6 +161,10 @@ pub trait FsmActionSelf<F: Fsm, S> {
 pub struct NoEvent;
 impl FsmEvent for NoEvent { }
 
+#[derive(Debug, Clone)]
+pub struct FsmErrorEvent(pub FsmTransitionError);
+impl FsmEvent for FsmErrorEvent {}
+
 pub struct NoAction;
 #[async_trait]
 impl<F: Fsm, S: Send + Sync, T: Send + Sync> FsmAction<F, S, T> for NoAction {
@@ -156,9 +186,18 @@ pub struct EventContext<'a, F: Fsm + 'a> {
 	//pub states: &'a mut F::SS
 }
 
+impl<'a, F: Fsm + 'a> EventContext<'a, F> {
+	pub async fn enqueue_event(&self, event: F::E) {
+		self
+			.queue
+			.write()
+			.await
+			.enqueue_event(event);
+	}
+}
 
 pub trait FsmEventQueue<F: Fsm>: Send + Sync {
-	fn enqueue_event(&mut self, event: F::E) -> Result<(), FsmError>;
+	fn enqueue_event(&mut self, event: F::E);
 	fn dequeue_event(&mut self) -> Option<F::E>;
 	fn len(&self) -> usize;
 }
@@ -181,9 +220,8 @@ impl<F: Fsm> FsmEventQueueVec<F> {
 }
 
 impl<F: Fsm> FsmEventQueue<F> for FsmEventQueueVec<F> {
-	fn enqueue_event(&mut self, event: F::E) -> Result<(), FsmError> {
+	fn enqueue_event(&mut self, event: F::E) {
 		self.queue.push(event);
-		Ok(())
 	}
 
 	fn dequeue_event(&mut self) -> Option<F::E> {
@@ -219,8 +257,8 @@ pub trait Fsm where Self: Sized {
 	async fn start(&self);
 	async fn stop(&self);
 
-	async fn call_on_entry(&self, state: Self::S);
-	async fn call_on_exit(&self, state: Self::S);
+	async fn call_on_entry(&self, state: Self::S) -> FsmTransitionResult<()>;
+	async fn call_on_exit(&self, state: Self::S) -> FsmTransitionResult<()>;
 
 	fn get_queue(&self) -> &FsmArc<dyn FsmEventQueue<Self>>;
 
@@ -287,6 +325,7 @@ pub trait Fsm where Self: Sized {
 // codegen types
 
 pub struct InitialState<F: Fsm, S: FsmState<F>>(PhantomData<F>, S);
+pub struct ErrorState<F: Fsm, S: FsmState<F>>(PhantomData<F>, S);
 pub struct ContextType<T>(T);
 pub struct InspectionType<F: Fsm, T: FsmInspect<F>>(PhantomData<F>, T);
 pub struct SubMachine<F: Fsm>(F);

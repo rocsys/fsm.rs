@@ -5,6 +5,7 @@ use crate::fsm_def::*;
 use petgraph::*;
 use petgraph::visit::*;
 
+use core::panic;
 use std::collections::HashMap;
 
 
@@ -21,17 +22,33 @@ impl fmt::Display for NodeData {
     }
 }
 
-pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<syn::Ty>, submachines: &Vec<syn::Ty>, interrupt_states: &Vec<FsmInterruptState>) -> Vec<FsmRegion> {
+pub fn create_regions(
+    transitions: &Vec<TransitionEntry>,
+    initial_states: &Vec<syn::Ty>,
+    error_state: &Option<syn::Ty>,
+    submachines: &Vec<syn::Ty>,
+    interrupt_states: &Vec<FsmInterruptState>
+) -> Vec<FsmRegion> {
     let mut gr = Graph::new();
     let mut nodes = HashMap::new();
 
     let orphan_region = 255;
 
     for initial_state in initial_states {
-        let s = ty_to_string(initial_state);
+        let mut add_node = |node_type| {
+            let s = ty_to_string(node_type);
+            let n = gr.add_node(NodeData { state: s.clone(), region: orphan_region });
+            nodes.insert(s, n);
+            n
+        };
 
-        let n = gr.add_node(NodeData { state: s.clone(), region: orphan_region });
-        nodes.insert(s, n);
+        let initial_state_node = add_node(initial_state);
+
+        // When there is an error state, add an edge from the initial state to the error state
+        if let Some(error_state) = error_state {
+            let error_state_node = add_node(error_state);
+            gr.add_edge(initial_state_node, error_state_node, 0);
+        }
     }
 
     for transition in transitions {
@@ -72,10 +89,23 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
             gr[nx].region = region_id;
         }
 
+        let mut transitions = Vec::new();
+
+        if let Some(error_state) = error_state {
+            transitions.push(TransitionEntry {
+                source_state: initial_state.clone(),
+                event: syn::parse_type("FsmErrorEvent").unwrap(),
+                target_state: error_state.clone(),
+                action: syn::parse_type("NoAction").unwrap(),
+                transition_type: TransitionType::Normal,
+                guard: None
+            });
+        }
+
         regions.push(FsmRegion {
             submachines: Vec::new(),
             id: region_id,
-            transitions: Vec::new(),
+            transitions,
             initial_state_ty: initial_state.clone(),
             interrupt_states: Vec::new()
         });
@@ -103,6 +133,7 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
 
     for region in &mut regions {
         let states = region.get_all_states().clone();
+
         for s in &states {
             if submachines.contains(s) {
                 region.submachines.push(s.clone());
@@ -111,7 +142,24 @@ pub fn create_regions(transitions: &Vec<TransitionEntry>, initial_states: &Vec<s
             for interrupted_state in region_interrupted_states {
                 region.interrupt_states.push(interrupted_state.clone());
             }
+
+            if let Some(error_state) = error_state {
+                if error_state == s || initial_states.contains(s) {
+                    continue;
+                }
+
+                // Define transition from the state to the error state
+                region.transitions.push(TransitionEntry {
+                    source_state: s.clone(),
+                    event: syn::parse_type("FsmErrorEvent").unwrap(),
+                    target_state: error_state.clone(),
+                    action: syn::parse_type("NoAction").unwrap(),
+                    transition_type: TransitionType::Normal,
+                    guard: None
+                })
+            }
         }
+
     }
 
     regions
