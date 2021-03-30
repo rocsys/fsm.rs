@@ -380,7 +380,7 @@ async fn test_player() {
 
 
     {
-        let sub: &mut Playing = p.get_state_mut();
+        let sub = (p.get_state() as FsmArc<Playing>).read().await;
         sub.process_event(PlayingEvents::NextSong(NextSong)).await.unwrap();
         assert_eq!(PlayingStates::Song2, sub.get_current_state());
         assert_eq!(1, sub.get_context().song1_exit_counter);
@@ -396,14 +396,14 @@ async fn test_player() {
     assert_eq!(1, p.get_context().action_paused_entry_counter);
     assert_eq!(1, p.get_context().playing_fsm_exit_counter);
     {
-        let sub: &Playing = p.get_state();
+        let sub = (p.get_state() as FsmArc<Playing>).read().await;
         assert_eq!(1, sub.get_context().song2_entry_counter);
         assert_eq!(1, sub.get_context().song2_exit_counter);
     }
 
     p.process_event(PlayerEvents::EndPause(EndPause)).await.unwrap();
     {
-        let sub: &Playing = p.get_state();
+        let sub = (p.get_state() as FsmArc<Playing>).read().await;
         assert_eq!(PlayingStates::Song1, sub.get_current_state());
         assert_eq!(2, sub.get_context().song1_entry_counter);
     }
@@ -430,7 +430,7 @@ async fn test_player() {
     p.process_event(PlayerEvents::Play(Play)).await.unwrap();
     assert_eq!(PlayerStates::Playing, p.get_current_state());
     {
-        let sub: &Playing = p.get_state();
+        let sub = (p.get_state() as FsmArc<Playing>).read().await;
         assert_eq!(PlayingStates::Song1, sub.get_current_state());
         assert_eq!(3, sub.get_context().song1_entry_counter);
     }

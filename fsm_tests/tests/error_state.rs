@@ -6,6 +6,7 @@ extern crate fsm_codegen;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use assert_matches::assert_matches;
 
 use fsm::*;
 
@@ -27,20 +28,20 @@ impl FsmEvent for GoToBrokenChild {}
 
 // ------------------------------------------
 
-#[derive(Clone, Default)]
-struct Initial;
+#[derive(Debug, Clone, Default)]
+pub struct Initial;
 
-#[derive(Clone, Default)]
-struct InitialWithFailure;
+#[derive(Debug, Clone, Default)]
+pub struct InitialWithFailure;
 
-#[derive(Clone, Default)]
-struct ProcessWithFailure;
+#[derive(Debug, Clone, Default)]
+pub struct ProcessWithFailure;
 
-#[derive(Clone, Default)]
-struct Error;
+#[derive(Debug, Clone, Default)]
+pub struct Error;
 
-#[derive(Clone, Default)]
-struct Recovered;
+#[derive(Debug, Clone, Default)]
+pub struct Recovered;
 
 // ------------------------------------------
 
@@ -181,11 +182,11 @@ struct ChildDefinition(
 async fn test_error_in_initial_state() {
 	let fsm = Broken::new(&Default::default());
 
-	assert_eq!(fsm.get_current_state().await, BrokenStates::InitialWithFailure);
+	assert_matches!(fsm.get_current_state().await, BrokenStates::InitialWithFailure(_));
 
 	fsm.start().await;
 
-	assert_eq!(fsm.get_current_state().await, BrokenStates::Error);
+	assert_matches!(fsm.get_current_state().await, BrokenStates::Error(_));
 }
 
 #[cfg(test)]
@@ -193,15 +194,15 @@ async fn test_error_in_initial_state() {
 async fn test_error_during_processing_event() {
 	let fsm = Parent::new(&Default::default());
 
-	assert_eq!(fsm.get_current_state().await, ParentStates::Initial);
+	assert_matches!(fsm.get_current_state().await, ParentStates::Initial(_));
 
 	fsm.start().await;
 
-	assert_eq!(fsm.get_current_state().await, ParentStates::Initial);
+	assert_matches!(fsm.get_current_state().await, ParentStates::Initial(_));
 
   fsm.process_event(ParentEvents::GoToProcess(GoToProcess)).await.unwrap();
 
-  assert_eq!(fsm.get_current_state().await, ParentStates::Error);
+  assert_matches!(fsm.get_current_state().await, ParentStates::Error(_));
 }
 
 #[cfg(test)]
@@ -213,11 +214,11 @@ async fn test_error_recovery() {
 
   fsm.process_event(ParentEvents::GoToProcess(GoToProcess)).await.unwrap();
 
-  assert_eq!(fsm.get_current_state().await, ParentStates::Error);
+  assert_matches!(fsm.get_current_state().await, ParentStates::Error(_));
 
   fsm.process_event(ParentEvents::GoToRecovered(GoToRecovered)).await.unwrap();
 
-  assert_eq!(fsm.get_current_state().await, ParentStates::Recovered);
+  assert_matches!(fsm.get_current_state().await, ParentStates::Recovered(_));
 }
 
 #[cfg(test)]
@@ -229,11 +230,13 @@ async fn test_error_in_initial_state_of_child() {
 
   parent.process_event(ParentEvents::GoToBrokenChild(GoToBrokenChild)).await.unwrap();
 
-  assert_eq!(parent.get_current_state().await, ParentStates::BrokenChild);
+  assert_matches!(parent.get_current_state().await, ParentStates::BrokenChild(_));
 
   {
-    let child: &BrokenChild = parent.get_state();
-    assert_eq!(BrokenChildStates::Error, child.get_current_state().await);
+    let child: FsmArc<BrokenChild> = parent.get_state();
+    let child = child.read().await;
+
+    assert_matches!(child.get_current_state().await, BrokenChildStates::Error(_));
   }
 }
 
@@ -246,14 +249,16 @@ async fn test_error_during_processing_event_in_child() {
 
   parent.process_event(ParentEvents::GoToChild(GoToChild)).await.unwrap();
 
-  assert_eq!(parent.get_current_state().await, ParentStates::Child);
+  assert_matches!(parent.get_current_state().await, ParentStates::Child(_));
 
   {
-    let child: &Child = parent.get_state();
-    assert_eq!(ChildStates::Initial, child.get_current_state().await);
+    let child: FsmArc<Child> = parent.get_state();
+    let child = child.read().await;
+
+    assert_matches!(child.get_current_state().await, ChildStates::Initial(_));
 
     child.process_event(ChildEvents::GoToProcess(GoToProcess)).await.unwrap();
 
-    assert_eq!(ChildStates::Error, child.get_current_state().await);
+    assert_matches!(child.get_current_state().await, ChildStates::Error(_));
   }
 }
