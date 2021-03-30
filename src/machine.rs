@@ -67,7 +67,7 @@ pub trait FsmInspect<F: Fsm> {
 	async fn on_no_transition(&self, _current_state: &F::S, _event_context: &EventContext<'_, F>) { }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FsmInspectNull<F: Fsm> {
 	_fsm_ty: PhantomData<F>
 }
@@ -138,6 +138,7 @@ pub trait FsmGuard<F: Fsm> {
 	fn guard(event_context: &EventContext<F>, states: &F::SS) -> bool;
 }
 
+#[derive(Debug)]
 pub struct NoGuard;
 impl<F: Fsm> FsmGuard<F> for NoGuard {
 	#[inline]
@@ -165,6 +166,7 @@ impl FsmEvent for NoEvent { }
 pub struct FsmErrorEvent(pub FsmTransitionError);
 impl FsmEvent for FsmErrorEvent {}
 
+#[derive(Debug)]
 pub struct NoAction;
 #[async_trait]
 impl<F: Fsm, S: Send + Sync, T: Send + Sync> FsmAction<F, S, T> for NoAction {
@@ -196,17 +198,17 @@ impl<'a, F: Fsm + 'a> EventContext<'a, F> {
 	}
 }
 
-pub trait FsmEventQueue<F: Fsm>: Send + Sync {
+pub trait FsmEventQueue<F: Fsm>: Debug + Send + Sync {
 	fn enqueue_event(&mut self, event: F::E);
 	fn dequeue_event(&mut self) -> Option<F::E>;
 	fn len(&self) -> usize;
 }
 
 pub trait FsmRetrieveState<S> {
-	fn get_state(&self) -> &S;
-	fn get_state_mut(&mut self) -> &mut S;
+	fn get_state(&self) -> FsmArc<S>;
 }
 
+#[derive(Debug)]
 pub struct FsmEventQueueVec<F: Fsm> {
 	queue: Vec<F::E>
 }
@@ -239,17 +241,22 @@ impl<F: Fsm> FsmEventQueue<F> for FsmEventQueueVec<F> {
 
 pub type FsmArc<T> = Arc<RwLock<T>>;
 
-pub async fn fsm_read_state<S: Copy>(state: &FsmArc<S>) -> S {
+pub async fn fsm_read_state<S: Clone>(state: &FsmArc<S>) -> S {
 	let state = state.read().await;
-	*state
+	state.clone()
 }
 
 #[async_trait]
-pub trait Fsm where Self: Sized {
-	type E: FsmEvents<Self>;
+pub trait FsmRetrieveStateName {
+	async fn name(&self) -> String;
+}
+
+#[async_trait]
+pub trait Fsm where Self: Debug + Sized {
+	type E: FsmEvents<Self> + Debug;
 	type S: Send + Sync;
 	type C: Send + Sync;
-	type CS: Debug + Send + Sync;
+	type CS: Send + Sync;
 	type SS: Send + Sync;
 
 	fn new(context: &FsmArc<Self::C>) -> Self;
