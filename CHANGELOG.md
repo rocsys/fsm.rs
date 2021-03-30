@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2021-03-30
+
+### Added
+
+- Add an `FsmArc` with the state object to each variant of state enums.
+- Add an `FsmRetrieveStateName` trait that allows retrieving the fully-qualified name of states.
+
 ## [0.5.0] - 2021-02-25
 
 ### Added
