@@ -3,6 +3,7 @@ extern crate fsm;
 extern crate fsm_codegen;
 
 use async_trait::async_trait;
+use assert_matches::assert_matches;
 
 use fsm::*;
 
@@ -26,17 +27,17 @@ impl FsmEvent for EventStart {}
 pub struct EventStop;
 impl FsmEvent for EventStop {}
 
-#[derive(Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct StateA { a: usize }
 #[async_trait]
 impl FsmState<FsmMinTwo> for StateA { }
 
-#[derive(Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct StateB { b: usize }
 #[async_trait]
 impl FsmState<FsmMinTwo> for StateB { }
 
-#[derive(Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct StateC { c: usize }
 #[async_trait]
 impl FsmState<FsmMinTwo> for StateC { }
@@ -63,8 +64,8 @@ struct FsmMinTwoDefinition(
 async fn test_fsm_min2() {
     let fsm = FsmMinTwo::new(&Default::default());
     fsm.start().await;
-    assert_eq!(FsmMinTwoStates::StateA, fsm.get_current_state().await);
+    assert_matches!(fsm.get_current_state().await, FsmMinTwoStates::StateA(_));
 
     fsm.process_event(FsmMinTwoEvents::EventStart(EventStart)).await.unwrap();
-    assert_eq!(FsmMinTwoStates::StateB, fsm.get_current_state().await);
+    assert_matches!(fsm.get_current_state().await, FsmMinTwoStates::StateB(_));
 }
